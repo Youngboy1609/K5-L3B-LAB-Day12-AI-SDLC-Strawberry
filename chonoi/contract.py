@@ -10,6 +10,11 @@ from .inventory import NODE_KINDS_P1, NODE_KINDS_P2
 DEFAULT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game.contract.json")
 
 
+def effective_contract_version(declared_version):
+    """Map the v1.3 public manifest to the unchanged v1.2 runtime contract."""
+    return "1.2" if declared_version == "1.3" else declared_version
+
+
 def _num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
@@ -28,8 +33,14 @@ def load_contract(path=DEFAULT_PATH) -> dict:
     if not isinstance(c, dict):
         raise BadInput("manifest phải là object")
     version = c.get("contract_version", "1.0")
+    effective_version = effective_contract_version(version)
+    if version == "1.3":
+        for key in ("bench_cmd", "soak_cmd"):
+            value = c.get(key)
+            if not isinstance(value, str) or not value.strip():
+                raise BadInput(f"{key} phải là chuỗi lệnh không rỗng ở contract v1.3")
     tuning = c.get("tuning")
-    if version == "1.2":
+    if effective_version == "1.2":
         freshness = c.get("freshness")
         if not isinstance(freshness, dict) or set(freshness) != {
                 "initial", "gather_decay_per_s", "quan_decay_per_s", "spoiled_below"}:
@@ -46,7 +57,7 @@ def load_contract(path=DEFAULT_PATH) -> dict:
             tuning["freshness"] = dict(freshness)
             if "reservations" in c:
                 tuning["reservations"] = _validate_reservations(c["reservations"])
-    validate_tuning(tuning, version)
+    validate_tuning(tuning, effective_version)
     c["tuning"] = tuning
     return c
 

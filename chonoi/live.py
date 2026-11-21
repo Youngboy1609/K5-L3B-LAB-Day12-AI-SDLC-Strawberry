@@ -25,7 +25,7 @@ import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .contract import load_contract
+from .contract import effective_contract_version, load_contract
 from .errors import BadInput
 from .inputs import BUTTONS_V11, LiveInputs
 from .inventory import ingredient_kinds, read_inventory
@@ -66,16 +66,16 @@ class LiveGame:
         self._reset()
 
     def _reset(self):
+        runtime_version = effective_contract_version(self.contract_version)
         if self.mode == "day":
             mode, tuning, scenario, seed, _ = self._args
-            version = "1.2" if self.contract_version == "1.2" else "1.1"
-            self.session = DaySession(tuning, scenario, seed, self.days, contract_version=version)
+            self.session = DaySession(tuning, scenario, seed, self.days, contract_version=runtime_version)
             self.inputs = LiveInputs(buttons=BUTTONS_V11, allow_buy=True)
             self.events = self.session._wrap(0, self.session.initial_events)  # day_start, day_plan, phase_start
             self.served_dishes = {}
             self.shift_start_reputation = self.session.sim.reputation
         else:
-            self.session = Session(*self._args, contract_version=self.contract_version)
+            self.session = Session(*self._args, contract_version=runtime_version)
             self.inputs = LiveInputs()
             self.events = list(self.session.initial_events)
         self._saved = False
@@ -298,16 +298,17 @@ def main(argv=None) -> int:
             raise BadInput("day không nhận cờ file kho --inventory/--inventory-out")
         contract = load_contract()
         version = contract.get("contract_version", "1.0")
-        if a.mode == "day" and version not in ("1.1", "1.2"):
+        runtime_version = effective_contract_version(version)
+        if a.mode == "day" and runtime_version not in ("1.1", "1.2"):
             raise BadInput("--mode day cần game.contract.json v1.1 trở lên (bảng day_plans, upgrades); file hiện là v" + str(version))
         tuning = contract["tuning"]
-        scenario = load_scenario(a.scenario, a.mode, tuning, version)
+        scenario = load_scenario(a.scenario, a.mode, tuning, runtime_version)
         inventory = None
         if a.inventory:
-            if version == "1.2":  # kho mảng cá thể; file đếm cũ bị từ chối (mã 2)
-                inventory = read_inventory(a.inventory, ingredient_kinds(version), contract_version=version)
+            if runtime_version == "1.2":  # kho mảng cá thể; file đếm cũ bị từ chối (mã 2)
+                inventory = read_inventory(a.inventory, ingredient_kinds(runtime_version), contract_version=runtime_version)
             else:
-                inventory = read_inventory(a.inventory, ingredient_kinds(version))
+                inventory = read_inventory(a.inventory, ingredient_kinds(runtime_version))
         if inventory is not None and "stock" in scenario:
             raise BadInput("vừa có quan.stock vừa có --inventory")
         game = LiveGame(a.mode, tuning, scenario, a.seed, inventory, a.inventory_out,
