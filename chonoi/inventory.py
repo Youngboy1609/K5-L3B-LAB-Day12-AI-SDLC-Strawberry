@@ -11,9 +11,13 @@ import tempfile
 from .errors import BadInput
 
 KINDS_P1 = ("ca_loc", "ca_linh", "bong_dien_dien", "bong_sung")
+# Phase 2 (contract v1.1): đủ sáu nguyên liệu. Mặc định đọc/ghi mở sang KINDS_P2
+# để mode `day` dùng được; mode v1.0 độc lập chỉ nhận tập cũ vẫn chạy (whitelist
+# là tập cha). Số chuẩn menu D1–D5 chờ bảng P2-01 (docs/clarify.md).
+KINDS_P2 = KINDS_P1 + ("ca_keo", "keo_neo")
 
 
-def validate_items(items, kinds=KINDS_P1):
+def validate_items(items, kinds=KINDS_P2):
     if not isinstance(items, dict):
         raise BadInput("items phải là object")
     out = {}
@@ -27,7 +31,7 @@ def validate_items(items, kinds=KINDS_P1):
     return out
 
 
-def read_inventory(path: str, kinds=KINDS_P1) -> dict:
+def read_inventory(path: str, kinds=KINDS_P2) -> dict:
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
