@@ -19,7 +19,8 @@ Hợp đồng dữ liệu với lát 3 (khách). Một khách = một đơn:
     reserved         {kind: n}, chỉ khác rỗng khi order_status == "reserved"
     order_tick       tick gọi món (chọn đơn reserved cũ nhất, hòa thì theo id bàn)
     patience_ticks_left, eat_ticks_left, base_price, tip
-Payload món ở bếp và trên tay: {"order_id", "dish_id", "base_price"}, order_id là id khách.
+Payload món ở bếp và trên tay: {"order_id", "dish_id", "base_price"}. order_id là id khách.
+Giá lấy từ menu khi bắt đầu nấu. settle_customers phát quan_end sau khi dọn ca.
 
 Số liệu chỉ đọc từ tuning (`sim.t`, `sim.menu`); không dùng ngẫu nhiên.
 """
@@ -36,7 +37,8 @@ def _ticks(seconds) -> int:
 
 
 def _clamp_rep(sim, value):
-    return min(sim.t["reputation_max"], max(sim.t["reputation_min"], value))
+    # Làm tròn để cộng dồn 0.2/-0.5 không trôi số thực (2.0 thành 1.9999… làm floor() mất 100 điểm).
+    return round(min(sim.t["reputation_max"], max(sim.t["reputation_min"], value)), 9)
 
 
 def _dish_payload(d) -> dict:
@@ -105,7 +107,8 @@ def _interact_stove(sim, s, events):
         reserved = c["reserved"]
         for k, n in reserved.items():
             sim.stock[k] -= n
-            if sim.stock[k] <= 0:
+            assert sim.stock[k] >= 0, f"phần giữ {k} vượt tồn — fixture phải bị chặn mã 2"
+            if sim.stock[k] == 0:
                 sim.stock.pop(k)
         c["reserved"] = {}
         c["order_status"] = "assigned"
@@ -118,7 +121,7 @@ def _interact_stove(sim, s, events):
         events.append(("cook_started", {"stove_id": s["id"], "customer_id": c["id"], **_dish_payload(s["dish"]), "items": items,
                                         "cook_ticks": s["cook_ticks_left"]}))
     elif s["state"] == "ready":
-        if sim.hand is not None:  # carry_limit = 1
+        if sim.hand is not None:  # tay chứa đúng một món (carry_limit = 1 ở v1.0)
             return
         sim.hand = s["dish"]
         s["dish"] = None
