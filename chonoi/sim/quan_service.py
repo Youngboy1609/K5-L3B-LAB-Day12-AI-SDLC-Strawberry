@@ -21,7 +21,7 @@ Hợp đồng dữ liệu với lát 3 (khách). Một khách = một đơn:
     patience_ticks_left, eat_ticks_left, base_price, tip
 Payload món ở bếp và trên tay: {"order_id", "dish_id", "base_price"}. order_id là id khách.
 Giá lấy từ menu khi bắt đầu nấu. settle_customers phát quan_end (một lần) sau khi dọn ca, kèm báo cáo
-ca `sim.shift`: served, paid, left (hết kiên nhẫn), left_closing (rời lúc đóng ca), tips.
+ca `sim.shift` (chỉ mode `day`): served, paid, left (hết kiên nhẫn), left_closing (rời lúc đóng ca), tips.
 
 Số liệu chỉ đọc từ tuning (`sim.t`, `sim.menu`); không dùng ngẫu nhiên.
 """
@@ -216,4 +216,4 @@ def settle_customers(sim, events):
         sim.reason = "time"
         events.append(("quan_end", {"reason": "time", "money": sim.money, "earned": sim.earned,
                                     "shift_earned": sim.shift_earned, "reputation": sim.reputation,
-                                    **{k: sim.shift[k] for k in ("served", "paid", "left", "left_closing", "tips")}}))
+                                    **(dict(sim.shift) if sim.day_mode else {})}))

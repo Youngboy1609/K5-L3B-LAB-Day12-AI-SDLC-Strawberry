@@ -18,9 +18,13 @@ class QuanSim:
         t = tuning["quan"]
         self.t = t
         self.menu = tuning["menu"]
+        # Chỉ mode `day` truyền dish_ids/start; quán độc lập giữ JSONL đúng định dạng v1.0 (không thêm khóa).
+        self.day_mode = dish_ids is not None or start is not None
         if dish_ids is None:
             self.dish_ids = sorted(self.menu)
         else:
+            if not isinstance(dish_ids, (list, tuple, set, frozenset)):
+                raise BadInput("dish_ids phải là danh sách ID món")
             unknown = sorted(set(dish_ids) - set(self.menu))
             if unknown:
                 raise BadInput(f"kế hoạch Ngày có món không có trong menu: {unknown}")
@@ -67,13 +71,23 @@ class QuanSim:
         start = start or {}
         self.money = start.get("money", 0)
         self.earned = start.get("earned", 0)
-        if "reputation" in start:
-            self.reputation = start["reputation"]
+        for name in ("money", "earned"):
+            v = getattr(self, name)
+            if isinstance(v, bool) or not isinstance(v, int):
+                raise BadInput(f"start.{name} phải là số nguyên")
         if not (0 <= self.money <= self.earned):
             raise BadInput("cần 0 ≤ money ≤ earned khi mở quán")
+        if "reputation" in start:
+            rep = start["reputation"]
+            if (isinstance(rep, bool) or not isinstance(rep, (int, float))
+                    or not (t["reputation_min"] <= rep <= t["reputation_max"])):
+                raise BadInput("start.reputation phải là số trong [reputation_min, reputation_max]")
+            self.reputation = rep
         self.shift_earned = 0
         # Báo cáo cuối ca cho HUD/DayResult; quan_service cập nhật.
-        self.shift = {"served": 0, "paid": 0, "left": 0, "left_closing": 0, "tips": 0}
+        # Khách fixture đang ăn tính là đã phục vụ, để paid ≤ served.
+        self.shift = {"served": sum(c["state"] == "eating" for c in self.customers),
+                      "paid": 0, "left": 0, "left_closing": 0, "tips": 0}
         self.done = False
         self.reason = None
 
@@ -89,7 +103,7 @@ class QuanSim:
 
     def snapshot(self) -> dict:
         occupied = {c["table_id"]: c["id"] for c in self.customers}
-        return {
+        snap = {
             "player": {"pos": self.pos},
             "stock": {k: self.stock[k] for k in sorted(self.stock) if self.stock[k] > 0},
             "hand": self.hand,
@@ -97,9 +111,11 @@ class QuanSim:
                        for s in self.stoves],
             "tables": [{"id": tb["id"], "pos": tb["pos"], "customer_id": occupied.get(tb["id"])} for tb in self.tables],
             "customers": sort_by_id(self.customers),
-            "menu": list(self.dish_ids),
-            "shift": dict(self.shift, shift_earned=self.shift_earned),
         }
+        if self.day_mode:
+            snap["menu"] = list(self.dish_ids)
+            snap["shift"] = dict(self.shift, shift_earned=self.shift_earned)
+        return snap
 
     def available_stock(self):
         """Physical stock less reservations still owned by reserved orders."""

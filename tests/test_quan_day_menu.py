@@ -146,12 +146,44 @@ class Handover(unittest.TestCase):
             ev += sim.step(IDLE)
         ends = [d for n, d in ev if n == "quan_end"]
         self.assertEqual(len(ends), 1)
-        tip = int(40 * sim.t["tip_rate"])
+        price = sim.menu["goi_bong_sung"]["price"]
+        tip = int(price * sim.t["tip_rate"])
         self.assertEqual({k: ends[0][k] for k in ("served", "paid", "left", "left_closing", "tips")},
                          {"served": 1, "paid": 1, "left": 1, "left_closing": 1, "tips": tip})
-        self.assertEqual(ends[0]["shift_earned"], 40 + tip)
-        self.assertEqual((ends[0]["money"], ends[0]["earned"]), (140 + tip, 140 + tip))
+        self.assertEqual(ends[0]["shift_earned"], price + tip)
+        self.assertEqual((ends[0]["money"], ends[0]["earned"]), (100 + price + tip,) * 2)
         self.assertEqual(sim.snapshot()["shift"]["served"], 1)
+
+
+    def test_bad_start_rejected(self):
+        hi = BASE["quan"]["reputation_max"]
+        for start in ({"money": "5", "earned": "9"}, {"money": 1.5, "earned": 2}, {"money": True, "earned": 1},
+                      {"reputation": hi + 1}, {"reputation": "x"}, {"reputation": True}):
+            with self.subTest(start=start), self.assertRaises(BadInput):
+                sim_for({"stock": {}}, start=start)
+
+    def test_dish_ids_must_be_list(self):
+        with self.assertRaises(BadInput):
+            sim_for({"stock": {}}, dish_ids="goi_bong_sung")
+
+    def test_fixture_eating_customer_counts_as_served(self):
+        sc = {"stock": {}, "random_customers": False, "time_left_ticks": 1,
+              "customers": [{"id": "C1", "table_id": "T1", "dish_id": "goi_bong_sung", "state": "eating",
+                             "order_status": "served", "reserved": {}, "eat_ticks_left": 50,
+                             "base_price": BASE["menu"]["goi_bong_sung"]["price"], "tip": 0}]}
+        sim = sim_for(sc, start={"money": 0, "earned": 0})
+        end = [d for n, d in sim.step(IDLE) if n == "quan_end"][0]
+        self.assertEqual((end["served"], end["paid"]), (1, 1))
+
+
+class StandaloneV10Format(unittest.TestCase):
+    def test_standalone_adds_no_new_keys(self):
+        sim = sim_for({"stock": {}, "time_left_ticks": 1})
+        snap = sim.snapshot()
+        self.assertNotIn("menu", snap)
+        self.assertNotIn("shift", snap)
+        end = [d for n, d in sim.step(IDLE) if n == "quan_end"][0]
+        self.assertEqual(set(end), {"reason", "money", "earned", "shift_earned", "reputation"})
 
 
 if __name__ == "__main__":
