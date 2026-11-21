@@ -12,6 +12,6 @@ Bản nháp do Codex hỗ trợ theo yêu cầu của Nguyễn Minh Quân; Quân
 ## Phase 2 — chuẩn bị QA độc lập
 
 - Thêm test smoke vòng ngày theo kế hoạch và kiểm tất định hai mode độc lập.
-- Lưu regression, log suite và hash JSONL tại `docs/proof/phase-2/`; ma trận ở `docs/verification/phase-2.md`.
-- Smoke day đang báo thiếu --days; chưa khẳng định gameplay P2 đạt. Không sửa luật hoặc dùng skip để che lỗi.
+- Giữ fixture và hướng dẫn chạy tại `docs/proof/phase-2/`; ma trận ở `docs/verification/phase-2.md`.
+- Smoke đầu tiên báo thiếu \`--days\`. Lúc tích hợp, Nghĩa nối smoke với runtime v1.1 bằng dữ liệu thử để kiểm chuyển pha.
 - Chờ nhóm review test và bảng P2-01 trước khi chốt kỳ vọng số liệu.

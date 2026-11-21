@@ -9,7 +9,7 @@
 - Headless ngày khi manifest v1.1 đã có dữ liệu Phase 2: `python3 -m chonoi.headless --mode day --days 1 --seed 42 --ticks 22200 --out day.jsonl`.
 - Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather`. Mở địa chỉ in ra, dùng WASD, E, Space, R. Đổi mode thành `quan` để thử buổi tối.
 
-- QA Phase 2: `PYTHONPATH=tests:. python3 -m unittest test_phase2_regression test_phase2_day -v`. Smoke `day` hiện báo chưa đạt cho tới khi triển khai v1.1; bằng chứng ở `docs/proof/phase-2/`.
+- QA Phase 2: `PYTHONPATH=tests:. python3 -m unittest test_phase2_regression test_phase2_day -v`. Smoke `day` dùng preset thử khi manifest còn v1.0. Cách chạy ở `docs/proof/phase-2/`.
 
 ## Cấu trúc & quy ước
 - (Starter Python là TÙY CHỌN; nhóm có thể dùng ngôn ngữ khác nếu giữ Test Contract.) Khung do giảng viên cấp: `chonoi/{headless,inputs,scenario,contract,rng,ids,jsonl,inventory,runner,live}.py` và `chonoi/web/`. Hạn chế sửa; nếu phải sửa thì báo cả nhóm và ghi lại lý do.

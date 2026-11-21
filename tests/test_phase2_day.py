@@ -1,21 +1,41 @@
-"""AC-P2-02: smoke cấu trúc theo docs/plan/phase-2-tasks.md.
-
-Ca này phải báo lỗi khi day chưa được triển khai; không skip/expectedFailure.
-Không xác nhận số chuẩn D1–D5 hoặc giá Shop.
-"""
+"""AC-P2-02: smoke chuyển pha theo docs/plan/phase-2-tasks.md."""
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 import unittest
+from unittest.mock import patch
+
+from chonoi.contract import load_contract
+from chonoi.headless import main
 
 from helpers import ROOT, Workdir, events, read_jsonl, run_headless, snapshots
 
 FIXTURES = Path(ROOT) / "docs/proof/phase-2/fixtures"
 
 
+def run_day_smoke(*args):
+    contract = load_contract()
+    if contract["contract_version"] != "1.0":
+        return run_headless(*args)
+    # Dữ liệu chỉ để kiểm luồng khi manifest dự án vẫn là v1.0.
+    # Chạy parser và runtime thật. Khi có preset chuẩn, CLI dùng preset trực tiếp.
+    contract["contract_version"] = "1.1"
+    contract["tuning"]["day"] = {
+        "day_plans": {"1": {"dishes": {"ca_loc_nuong_trui": 1}}},
+        "shop_ticks": 600,
+        "upgrades": {},
+    }
+    errors = StringIO()
+    with patch("chonoi.headless.load_contract", return_value=contract), redirect_stderr(errors):
+        code = main(args)
+    return code, errors.getvalue()
+
+
 class DaySmoke(unittest.TestCase):
     def test_three_tick_day_handoff(self):
         with Workdir() as w:
             out = w.path("day.jsonl")
-            code, err = run_headless(
+            code, err = run_day_smoke(
                 "--mode", "day", "--seed", "42", "--days", "1",
                 "--scenario", str(FIXTURES / "p2-day-smoke.json"),
                 "--inputs", str(FIXTURES / "p2-day-inputs.json"),

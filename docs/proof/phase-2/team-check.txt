@@ -1,5 +1,0 @@
-Base HEAD: 96acf2907b1909c2cef630fcb5b0885d25752335
-Working tree: QA changes uncommitted
-Command: /Library/Frameworks/Python.framework/Versions/3.15/bin/python3 tools/check_team.py
-Exit: 0
-OK: 6 thành viên: Youngboy1609, DanggQuangg, TruongThuHa, shoxieje, nmqdhtb, hatrang200715
