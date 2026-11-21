@@ -98,7 +98,29 @@ function text(s, x, y, o = {}) {
   ctx.fillStyle = o.color || "#e8eef2";
   ctx.textAlign = o.align || "left";
   ctx.textBaseline = o.base || "alphabetic";
+  if (o.maxW) s = clip(String(s), o.maxW);
   ctx.fillText(s, x, y);
+}
+// Cắt chữ (thêm "…") cho vừa bề ngang maxW px, đo bằng font đang đặt — để chữ không tràn/đè lên nhau.
+function clip(s, maxW) {
+  if (ctx.measureText(s).width <= maxW) return s;
+  while (s.length > 1 && ctx.measureText(s + "…").width > maxW) s = s.slice(0, -1);
+  return s + "…";
+}
+// Xếp các mảnh chữ thành nhiều dòng vừa maxW px (không cắt mất mảnh nào). Mảnh dài hơn cả dòng thì tách theo từ.
+function wrapParts(parts, sep, maxW, size) {
+  ctx.font = size + "px system-ui, sans-serif";
+  const lines = [];
+  let cur = "";
+  parts.forEach((part) => {
+    const next = cur ? cur + sep + part : part;
+    if (!cur || ctx.measureText(next).width <= maxW) { cur = next; return; }
+    lines.push(cur);
+    cur = part;
+  });
+  if (cur) lines.push(cur);
+  if (sep === " ") return lines;
+  return lines.flatMap((ln) => (ctx.measureText(ln).width <= maxW ? [ln] : wrapParts(ln.split(" "), " ", maxW, size)));
 }
 function bar(x, y, w, h, frac, color, label) {
   ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(x, y, w, h);
@@ -107,6 +129,7 @@ function bar(x, y, w, h, frac, color, label) {
   if (label) text(label, x + w / 2, y + h - 3, { size: 11, align: "center" });
 }
 function fmtTime(ticks) {
+  if (typeof ticks !== "number" || !isFinite(ticks)) return "–:––";  // snapshot chưa có trường thời gian
   const s = Math.ceil(ticks / 60);
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
@@ -194,30 +217,129 @@ function drawGather(w, h) {
     let hs = "";
     for (let i = 0; i < p.hp_max; i++) hs += i < p.hp ? "♥" : "♡";
     text(hs, 345, 29, { size: 22, color: "#ff6b81" });
+    const hsW = ctx.measureText(hs).width;  // font 22px vừa đặt trong text()
+    text(`Máu ${p.hp}/${p.hp_max}`, 345 + hsW + 8, 27, { size: 14, color: "#ffb3bf" });
   }
   if (p && p.pos) text(`x ${p.pos[0].toFixed(1)}  d ${p.pos[1].toFixed(1)}`, 14, 52, { size: 12, color: "#9fb3c0" });
   if (p && p.catch_cd_ticks > 0) text("hồi chiêu bắt " + (p.catch_cd_ticks / 60).toFixed(1) + "s", 150, 52, { size: 12, color: "#9fb3c0" });
   // giỏ (khoang) dưới
-  if (snap.hold && snap.hold_capacity) {
-    const cap = snap.hold_capacity, sz = Math.min(30, (w - 260) / cap - 4), y0 = h - bottom + 8;
+  // Số trong giỏ: ưu tiên hold_count của snapshot, không có thì đếm mảng hold.
+  const hold = Array.isArray(snap.hold) ? snap.hold : [];
+  const holdCount = typeof snap.hold_count === "number" ? snap.hold_count : (Array.isArray(snap.hold) ? snap.hold.length : null);
+  if (holdCount !== null && snap.hold_capacity) {
+    const cap = snap.hold_capacity, full = holdCount >= cap;
+    const sz = Math.max(8, Math.min(30, (w - 260) / cap - 4)), y0 = h - bottom + 8;
     for (let i = 0; i < cap; i++) {
       const x0 = 14 + i * (sz + 4);
       ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fillRect(x0, y0, sz, sz);
-      if (snap.hold[i]) { ctx.fillStyle = kc(snap.hold[i]); ctx.fillRect(x0 + 3, y0 + 3, sz - 6, sz - 6); }
+      if (i < holdCount) { ctx.fillStyle = hold[i] ? kc(hold[i]) : "#bbbbbb"; ctx.fillRect(x0 + 3, y0 + 3, sz - 6, sz - 6); }
+      if (full) { ctx.strokeStyle = "#ef5350"; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, y0 + 1, sz - 2, sz - 2); }
     }
-    const names = {}; snap.hold.forEach((k) => (names[k] = (names[k] || 0) + 1));
-    text("Giỏ " + snap.hold.length + "/" + cap + "  " + Object.keys(names).map((k) => (KIND_NAME[k] || k) + "×" + names[k]).join(", "), 14, y0 + sz + 16, { size: 12, color: "#cfd8dc" });
+    const names = {}; hold.forEach((k) => (names[k] = (names[k] || 0) + 1));
+    const kinds = Object.keys(names).map((k) => (KIND_NAME[k] || k) + "×" + names[k]).join(", ");
+    text("Giỏ " + holdCount + "/" + cap + (full ? " · Giỏ đầy" : "") + (kinds ? "  " + kinds : ""), 14, y0 + sz + 16,
+         { size: 12, color: full ? "#ef5350" : "#cfd8dc", maxW: w - 28 });
   }
   text("WASD/mũi tên bơi · E hái / cập bến · Space bắt cá · R chơi lại", w - 10, h - 14, { size: 12, align: "right", color: "#9fb3c0" });
 }
 
 // ----- cảnh QUÁN: nhìn từ trên xuống, x sang phải, z lên (bắc) -----
+const DISH_NAME = { ca_loc_nuong_trui: "Cá lóc nướng trui", goi_bong_sung: "Gỏi bông súng", lau_ca_linh_dien_dien: "Lẩu cá linh bông điên điển" };
+// Snapshot bỏ các loại có tồn 0, nên HUD tự liệt kê 4 mã nguyên liệu hợp lệ của kho (chỉ để hiển thị).
+const QUAN_KINDS = ["ca_loc", "ca_linh", "bong_dien_dien", "bong_sung"];
+// Theo c.state của snapshot thật: "waiting" | "eating" (order_status là trường riêng). Trạng thái lạ thì hiện nguyên giá trị.
+const CUSTOMER_STATE = { waiting: "đang chờ", eating: "đang ăn" };
+
+// Tên món tiếng Việt; nhận chuỗi dish_id hoặc payload {order_id, dish_id, base_price}.
+function dishName(d) {
+  if (d === null || d === undefined || d === "") return "";
+  const id = typeof d === "object" ? d.dish_id : d;
+  if (id === null || id === undefined || id === "") return "món";
+  return DISH_NAME[id] || String(id);
+}
+// Kho khả dụng = stock[loại] − tổng customer.reserved[loại] của các khách "reserved".
+function quanStockLine() {
+  if (!snap.stock || typeof snap.stock !== "object") return null;
+  const stock = snap.stock, held = {};
+  (Array.isArray(snap.customers) ? snap.customers : []).forEach((c) => {
+    if (!c || c.order_status !== "reserved" || !c.reserved || typeof c.reserved !== "object") return;
+    Object.keys(c.reserved).forEach((k) => (held[k] = (held[k] || 0) + (Number(c.reserved[k]) || 0)));
+  });
+  const kinds = QUAN_KINDS.slice();
+  Object.keys(stock).concat(Object.keys(held)).forEach((k) => { if (!kinds.includes(k)) kinds.push(k); });
+  // Trả về từng mảnh "loại ×số" để HUD tự xuống dòng giữa các loại khi cửa sổ hẹp.
+  const parts = kinds.map((k) => {
+    const real = Number(stock[k]) || 0, avail = real - (held[k] || 0);
+    return (KIND_NAME[k] || k) + " ×" + avail + (avail !== real ? ` (tồn ${real})` : "");
+  });
+  parts[0] = "Kho khả dụng: " + parts[0];
+  return parts;
+}
+function stoveLine(st) {
+  const name = dishName(st.dish) || "món";
+  let s = "trống";
+  if (st.state === "cooking") s = "đang nấu " + name + (typeof st.cook_ticks_left === "number" ? ` còn ${Math.ceil(st.cook_ticks_left / 60)}s` : "");
+  else if (st.state === "ready") s = "đã chín " + name;
+  return `Bếp ${st.id ?? "?"}: ${s}`;
+}
+// Bảng "Khách" ở cạnh phải: bàn · món · trạng thái · giây kiên nhẫn còn lại.
+// Mỗi khách một mục; tên món dài thì xuống dòng trong cột món (không cắt chữ).
+function drawCustomerPanel(x0, y0, pw, yMax) {
+  const list = snap.customers.filter((c) => c && typeof c === "object");
+  const lineH = 16, gap = 4, head = 30, dishX = x0 + 42;
+  // Bước 1: dàn trang từng khách (cột trạng thái bên phải đo theo chữ thật, cột món lấy phần còn lại).
+  const rows = list.map((c) => {
+    const st = CUSTOMER_STATE[c.state] || (c.state ? String(c.state) : "?");
+    const pat = typeof c.patience_ticks_left === "number" ? Math.ceil(c.patience_ticks_left / 60) + "s" : "–";
+    const right = st + "  " + pat;
+    ctx.font = "12px system-ui, sans-serif";
+    const dishW = Math.max(60, pw - 42 - ctx.measureText(right).width - 20);
+    const dish = wrapParts(String(dishName(c.dish_id) || "?").split(" "), " ", dishW, 12);
+    const col = c.state === "waiting" ? "#f4b6c2" : c.state === "eating" ? "#a5d6a7" : "#e8eef2";
+    return { c, right, dish, dishW, col, hgt: dish.length * lineH + gap };
+  });
+  // Bước 2: lấy số khách vừa chiều cao (chừa một dòng "+N khách nữa" nếu thiếu chỗ).
+  const shown = [];
+  let used = head;
+  for (const r of rows) {
+    const need = used + r.hgt + (shown.length + 1 < rows.length ? lineH : 0);
+    if (y0 + need > yMax && shown.length) break;
+    shown.push(r); used += r.hgt;
+  }
+  const more = rows.length - shown.length;
+  const total = Math.max(head + lineH + gap, used + (more ? lineH : 0)) + 4;
+  ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(x0, y0, pw, total);
+  text("Khách", x0 + 8, y0 + 19, { size: 14, color: "#ffe082" });
+  text("bàn · món · trạng thái · còn", x0 + pw - 8, y0 + 19, { size: 10, align: "right", color: "#9fb3c0", maxW: pw - 70 });
+  if (!list.length) text("(chưa có khách)", x0 + 8, y0 + head + 13, { size: 12, color: "#9fb3c0" });
+  let y = y0 + head + 13;
+  shown.forEach((r) => {
+    text(String(r.c.table_id ?? "?"), x0 + 8, y, { size: 12, color: "#e8eef2", maxW: 30 });
+    r.dish.forEach((ln, i) => text(ln, dishX, y + i * lineH, { size: 12, color: "#e8eef2", maxW: r.dishW }));
+    text(r.right, x0 + pw - 8, y, { size: 12, align: "right", color: r.col });
+    y += r.hgt;
+  });
+  if (more) text(`+${more} khách nữa`, x0 + 8, y, { size: 11, color: "#9fb3c0" });
+}
+
 function drawQuan(w, h) {
   const meta = snap.meta || {};
   const b = meta.bounds || { x: [0, 16], z: [0, 10] };
-  const X = b.x[1], Z = b.z[1], top = 64, bottom = 40;
-  const s = Math.max(1, Math.min((w - 40) / X, (h - top - bottom) / Z));
-  const ox = (w - s * X) / 2, oy = top;
+  // Các dòng HUD dưới dòng thời gian: kho khả dụng, từng bếp, món trên tay (trường nào chưa có thì bỏ qua).
+  // Dòng nào không đủ chỗ thì tự xuống dòng (kho xuống dòng giữa các loại, không cắt mất loại nào).
+  const LINE_H = 19, HUD_Y0 = 52, HUD_SIZE = 13, hudW = w - 28;
+  const hud = [];
+  const stockParts = quanStockLine();
+  if (stockParts) hud.push(...wrapParts(stockParts, " · ", hudW, HUD_SIZE));
+  const addLine = (s) => hud.push(...wrapParts(s.split(" "), " ", hudW, HUD_SIZE));
+  if (Array.isArray(snap.stoves)) snap.stoves.forEach((st) => { if (st && typeof st === "object") addLine(stoveLine(st)); });
+  if ("hand" in snap) addLine("Đang cầm: " + (snap.hand ? dishName(snap.hand) || "món" : "tay trống"));
+  const hasPanel = Array.isArray(snap.customers);
+  const panelW = hasPanel ? Math.round(Math.min(w * 0.45, Math.max(220, Math.min(340, w * 0.3)))) : 0;
+  const X = b.x[1], Z = b.z[1], top = Math.max(64, HUD_Y0 + hud.length * LINE_H), bottom = 40;
+  const mapW = w - 40 - (hasPanel ? panelW + 10 : 0);
+  const s = Math.max(1, Math.min(mapW / X, (h - top - bottom) / Z));
+  const ox = 20 + (mapW - s * X) / 2, oy = top;
   const sx = (x) => ox + x * s, sy = (z) => oy + (Z - z) * s;
   ctx.fillStyle = "#c9a36b"; ctx.fillRect(sx(0), sy(Z), X * s, Z * s);
   ctx.strokeStyle = "#6b4a2b"; ctx.lineWidth = 4; ctx.strokeRect(sx(0), sy(Z), X * s, Z * s);
@@ -226,7 +348,7 @@ function drawQuan(w, h) {
     const col = st.state === "cooking" ? "#e8892b" : st.state === "ready" ? "#6fbf5a" : "#6d6d72";
     ctx.fillStyle = col; ctx.fillRect(sx(st.pos[0]) - 0.8 * s, sy(st.pos[1]) - 0.8 * s, 1.6 * s, 1.6 * s);
     text(st.id, sx(st.pos[0]), sy(st.pos[1]) + 4, { size: 12, align: "center", color: "#111" });
-    if (st.dish) text(st.dish, sx(st.pos[0]), sy(st.pos[1]) - 0.95 * s, { size: 10, align: "center", color: "#2a1a0a" });
+    if (st.dish) text(dishName(st.dish), sx(st.pos[0]), sy(st.pos[1]) - 0.95 * s, { size: 10, align: "center", color: "#2a1a0a", maxW: Math.max(60, 4 * s) });
     if (st.state === "cooking" && st.cook_ticks_left !== undefined) text(Math.ceil(st.cook_ticks_left / 60) + "s", sx(st.pos[0]), sy(st.pos[1]) + 1.25 * s, { size: 11, align: "center", color: "#2a1a0a" });
   });
   // bàn + khách
@@ -240,7 +362,7 @@ function drawQuan(w, h) {
     if (c) {
       const cx = sx(tb.pos[0]), cy = sy(tb.pos[1]) - 1.5 * s;
       ctx.fillStyle = c.state === "eating" ? "#7bc67b" : "#f4b6c2"; ctx.beginPath(); ctx.arc(cx, cy, 0.55 * s, 0, Math.PI * 2); ctx.fill();
-      text(c.dish_id || "?", cx, cy - 0.75 * s, { size: 10, align: "center", color: "#2a1a0a" });
+      text(dishName(c.dish_id) || "?", cx, cy - 0.75 * s, { size: 10, align: "center", color: "#2a1a0a", maxW: Math.max(60, 4 * s) });
       if (c.patience_ticks_left !== undefined) bar(cx - 0.8 * s, cy + 0.65 * s, 1.6 * s, 5, c.patience_ticks_left / patMax, "#e57373");
     }
   });
@@ -251,15 +373,14 @@ function drawQuan(w, h) {
     if (meta.interact_radius) { ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(px, py, meta.interact_radius * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
     ctx.fillStyle = "#ff8a3d"; ctx.beginPath(); ctx.arc(px, py, 0.5 * s, 0, Math.PI * 2); ctx.fill();
     if (snap.hand) {
-      const hand = typeof snap.hand === "string" ? snap.hand : (snap.hand.dish_id || "món");
-      text("🍲 " + hand, px, py - 0.8 * s, { size: 11, align: "center", color: "#2a1a0a" });
+      text("🍲 " + (dishName(snap.hand) || "món"), px, py - 0.8 * s, { size: 11, align: "center", color: "#2a1a0a", maxW: Math.max(80, 5 * s) });
     }
   }
   // HUD
   text("⏱ " + fmtTime(snap.time_left_ticks), 14, 28, { size: 20 });
   text(`Tiền ${snap.money ?? 0}k · uy tín ${(snap.reputation ?? 0).toFixed(1)} · điểm ${snap.score ?? 0}`, 110, 28, { size: 16 });
-  const stock = snap.stock ? Object.keys(snap.stock).map((k) => (KIND_NAME[k] || k) + "×" + snap.stock[k]).join(", ") : "";
-  text("Kho: " + (stock || "(trống)"), 14, 52, { size: 13, color: "#cfd8dc" });
+  hud.forEach((line, i) => text(line, 14, HUD_Y0 + i * LINE_H, { size: HUD_SIZE, color: "#cfd8dc", maxW: hudW }));
+  if (hasPanel) drawCustomerPanel(w - panelW - 10, top, panelW, h - 170);  // h-170: chừa chỗ cho nhật ký event góc dưới phải
   text("WASD/mũi tên đi · E tương tác (bếp / bàn) · R chơi lại", w - 10, h - 14, { size: 12, align: "right", color: "#9fb3c0" });
 }
 

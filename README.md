@@ -1,5 +1,45 @@
 # Day 12 — AI SDLC: Quán Ăn Chợ Nổi
 
+## Nhóm Strawberry · Chạy game
+
+**Chạy từ clone sạch (macOS/Linux)**
+
+```bash
+git clone https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry.git
+cd K5-L3B-LAB-Day12-AI-SDLC-Strawberry
+python3 -m chonoi.live --mode gather
+```
+
+Mở địa chỉ in ra trong terminal (mặc định http://127.0.0.1:8000/). Đổi `--mode gather` thành `--mode quan` để chơi buổi tối.
+
+**Nối hai buổi qua file kho:** buổi sáng ghi kho vào `kho.json` khi kết thúc lượt, buổi tối nạp lại kho đó.
+
+```bash
+python3 -m chonoi.live --mode gather --inventory-out kho.json
+python3 -m chonoi.live --mode quan --inventory kho.json
+```
+
+**Phím**
+
+| Phím | Tác dụng |
+|---|---|
+| WASD hoặc mũi tên | Di chuyển |
+| E | Hái rau / cập bến (sáng) · tương tác bếp, bàn (tối) |
+| Space | Bắt cá |
+| R | Chơi lại |
+
+**Điểm:** `score = earned + 100 × floor(reputation)`: tổng tiền kiếm được trong ca, cộng 100 điểm cho mỗi mức uy tín tròn (uy tín làm tròn xuống).
+
+**Chạy test**
+
+```bash
+PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
+```
+
+**File kho:** gốc có một khóa `"items"`, ánh xạ 4 mã nguyên liệu `bong_sung`, `bong_dien_dien`, `ca_linh`, `ca_loc` tới số nguyên không âm; loại có lượng 0 thì bỏ. Ví dụ: `{"items":{"bong_sung":2,"ca_loc":1}}`, xem [`docs/contracts/inventory.sample.json`](docs/contracts/inventory.sample.json).
+
+Thành viên và phân công: xem [`TEAM.md`](TEAM.md).
+
 > **Làm theo nhóm 4–6 người** · Dùng AI để xây game 2D qua **4 phase** trong **3 giờ**: Út Sen lặn bắt cá, hái rau trên mặt nước rồi tối mở quán phục vụ khách.
 > **Yêu cầu từng phase mở đúng mốc giờ tại lab board:** **[Chợ Nổi Lab](https://claude.ai/artifact/E35v787wSx2wDgPTNhMVDg)** (cần đăng nhập claude.ai; có trợ giảng AI cho từng phase).
 
