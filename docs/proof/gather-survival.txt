@@ -1,0 +1,19 @@
+Phase 1 — Kiểm chứng luật sinh tồn gather (AC-P1-01, AC-P1-02)
+
+Chạy trên Windows với Python 3.11.9. Đặt .venv\Scripts đầu PATH và PYTHONPATH=tests;.
+
+    python3 -m unittest discover -s tests -v
+
+Kết quả 32/32 test đạt.
+
+Bốn ca bổ sung gọi chonoi.headless với --mode gather --seed 1 --snapshot-every 1.
+Lệnh chạy các fixture trên máy kiểm chứng là python3 .venv/gather-survival-check.py.
+
+- Bắt đầu tại d=0.5 với 1 tick oxy rồi bơi xuống. Event dive và oxygen_empty ở tick 1. Event choke ở tick 60 và 120. Máu giảm đúng một điểm mỗi lần và bộ đếm ngạt về 0.
+- Bắt đầu dưới mặt nước với 0 oxy, zero_oxy_ticks=59 và 1 Máu rồi nổi lên ở tick 1. Chỉ có event surface, oxy hồi lên 6, bộ đếm về 0 và Máu giữ nguyên.
+- Đứng đúng d=0.5 với 1799 tick oxy. Oxy hồi lên 1800 và giữ mức tối đa ở tick kế tiếp.
+- Bắt đầu dưới nước trong vùng bến với 1 Máu, zero_oxy_ticks=59 và thời gian còn 1 tick. Gửi interact và catch ở tick 0. Kết quả ở tick 1 theo thứ tự choke, faint, gather_end. Giỏ ban đầu ["ca_loc","bong_sung","ca_linh","bong_sung"] cho lost ["bong_sung","ca_linh","bong_sung","ca_loc"]. File kho đã có dữ liệu được ghi lại thành {"items":{}}. Lý do kết thúc là fainted.
+
+Bản chơi thử cũng phát dive và giảm oxy khi kiểm tra qua /input và /state.
+
+Theo mục P1-01 trong docs/clarify.md, payload dùng nội bộ hiện là oxygen_empty {}, choke {"hp": ...} và faint {"lost": [...]}. PO đối chiếu với bảng sự kiện chính thức khi có.
