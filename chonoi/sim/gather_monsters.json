@@ -1,0 +1,16 @@
+{
+  "depth": [10, 30],
+  "patrol_speed": 1,
+  "chase_speed": 3,
+  "detect_radius": 10,
+  "escape_radius": 16,
+  "hit_radius": 1.5,
+  "damage": 1,
+  "invuln_ticks": 90,
+  "recoil_ticks": 60,
+  "recoil_distance": 2,
+  "routes": [
+    {"id": "M1", "from_day": 1, "points": [[60, 24], [64, 24]]},
+    {"id": "M2", "from_day": 3, "points": [[85, 18], [89, 18]]}
+  ]
+}
