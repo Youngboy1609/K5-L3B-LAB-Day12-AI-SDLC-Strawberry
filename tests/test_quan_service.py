@@ -152,7 +152,10 @@ class Serve(unittest.TestCase):
         at(sim, TABLE)
         names, ev = tick(sim, interact=True)
         self.assertEqual(names, ["served"])
-        self.assertEqual(ev[0][1]["tip"], 0)
+        self.assertEqual(ev[0][1], {
+            "order_id": sim.customers[0]["id"], "table_id": TABLE["id"], "dish_id": "goi_bong_sung",
+            "patience_ticks_left": 0, "base_price": 40, "tip": 0,
+        })
         self.assertEqual(sim.customers[0]["state"], "eating")
         self.assertIsNone(sim.hand)
 
@@ -167,6 +170,10 @@ class Serve(unittest.TestCase):
             self.assertEqual(tick(sim)[0], [])
         names, ev = tick(sim)
         self.assertEqual(names, ["paid"])
+        self.assertEqual(ev[0][1], {
+            "order_id": "C1", "table_id": TABLE["id"], "base_price": 40, "tip": tip,
+            "amount": 40 + tip, "reason": "finished_eating",
+        })
         self.assertEqual((sim.money, sim.earned, sim.shift_earned), (40 + tip,) * 3)
         self.assertAlmostEqual(sim.reputation, Q["reputation_initial"] + Q["tip_reputation"])
         self.assertEqual(sim.customers, [])
@@ -195,7 +202,7 @@ class Serve(unittest.TestCase):
         self.assertEqual(sim.hand["base_price"], TUNING["menu"]["goi_bong_sung"]["price"])
         at(sim, TABLE)
         _, ev = tick(sim, interact=True)
-        self.assertEqual(ev[0][1]["price"], TUNING["menu"]["goi_bong_sung"]["price"])
+        self.assertEqual(ev[0][1]["base_price"], TUNING["menu"]["goi_bong_sung"]["price"])
 
     def test_reputation_does_not_drift(self):
         sim = make_sim()
@@ -246,7 +253,7 @@ class Close(unittest.TestCase):
         sim.time_left_ticks = 1
         names, ev = tick(sim)
         self.assertEqual(names, ["paid", "quan_end"])
-        self.assertEqual(ev[0][1]["reason"], "closed")
+        self.assertEqual(ev[0][1]["reason"], "closing")
         self.assertTrue(sim.done)
         self.assertEqual(sim.customers, [])
 
