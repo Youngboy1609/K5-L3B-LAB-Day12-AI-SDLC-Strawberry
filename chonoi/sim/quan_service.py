@@ -18,11 +18,13 @@ Hợp đồng dữ liệu với lát 3 (khách). Một khách = một đơn:
     order_state      "reserved" | "assigned" | "served" | "unfulfillable"
     state            "waiting" | "eating"
     reserved         {kind: n} — chỉ khác rỗng khi order_state == "reserved"
-    order_tick       tick gọi món (chọn đơn reserved cũ nhất; hòa thì theo id khách)
-    patience_ticks   kiên nhẫn còn lại (Nghĩa giảm khi state == "waiting")
+    order_tick       tick gọi món (chọn đơn reserved cũ nhất; hòa thì theo id bàn, giống luật cấp phần giữ)
+    patience_ticks   BẮT BUỘC; kiên nhẫn còn lại (Nghĩa giảm khi state == "waiting")
     eat_ticks        thời gian ăn còn lại (Nghĩa giảm khi state == "eating")
     price, tip       chốt lúc phục vụ
-Payload món (trên bếp và trên tay): {"order_id", "dish_id", "base_price"}.
+Lát 3 phải chuẩn hóa order_state/state/patience_ticks cho khách nạp từ fixture (starter chưa đặt).
+Payload món (trên bếp và trên tay): {"order_id", "dish_id", "base_price"}; giá thu lấy từ menu theo dish_id.
+settle_customers phát `quan_end` -> xóa khối quan_end có sẵn trong step() khi ghép.
 
 Số liệu chỉ đọc từ tuning (`sim.t`, `sim.menu`); không dùng ngẫu nhiên.
 """
@@ -43,7 +45,8 @@ def _order_id(c) -> str:
 
 
 def _clamp_rep(sim, value):
-    return min(sim.t["reputation_max"], max(sim.t["reputation_min"], value))
+    # Làm tròn để cộng dồn 0.2/-0.5 không trôi số thực (2.0 thành 1.9999… làm floor() mất 100 điểm).
+    return round(min(sim.t["reputation_max"], max(sim.t["reputation_min"], value)), 9)
 
 
 def _dish_payload(d) -> dict:
@@ -100,7 +103,7 @@ def _oldest_reserved(sim):
     waiting = [c for c in sim.customers if c.get("order_state") == "reserved"]
     if not waiting:
         return None
-    return min(waiting, key=lambda c: (c.get("order_tick", 0), id_key(c["id"])))
+    return min(waiting, key=lambda c: (c.get("order_tick", 0), id_key(c["table_id"])))
 
 
 def _interact_stove(sim, s, events):
@@ -111,7 +114,8 @@ def _interact_stove(sim, s, events):
         # Tồn vật lý CHỈ đổi ở đây: trừ đúng phần giữ, một lần.
         for k, n in c.get("reserved", {}).items():
             sim.stock[k] = sim.stock.get(k, 0) - n
-            if sim.stock[k] <= 0:
+            assert sim.stock[k] >= 0, f"phần giữ {k} vượt tồn — fixture phải bị chặn mã 2"
+            if sim.stock[k] == 0:
                 sim.stock.pop(k)
         c["reserved"] = {}
         c["order_state"] = "assigned"
@@ -123,7 +127,7 @@ def _interact_stove(sim, s, events):
         events.append(("cook_started", {"stove_id": s["id"], "customer_id": c["id"], **_dish_payload(s["dish"]),
                                         "cook_ticks": s["cook_ticks_left"]}))
     elif s["state"] == "ready":
-        if sim.hand is not None:  # carry_limit = 1
+        if sim.hand is not None:  # tay chứa đúng một món (carry_limit = 1 ở v1.0)
             return
         sim.hand = s["dish"]
         s["dish"] = None
@@ -141,8 +145,8 @@ def _interact_table(sim, tb, events):
     if sim.hand["order_id"] != _order_id(c):  # bàn chỉ nhận đúng đơn của mình
         return
     patience_total = _ticks(sim.t["patience_s"])
-    left = max(0, c.get("patience_ticks", 0))
-    price = sim.hand["base_price"]
+    left = max(0, c["patience_ticks"])
+    price = sim.menu[sim.hand["dish_id"]]["price"]
     tip = 0
     if patience_total > 0 and left / patience_total >= sim.t["tip_min_patience_ratio"]:
         tip = int(round(price * sim.t["tip_rate"]))
@@ -197,7 +201,7 @@ def settle_customers(sim, events):
             if c.get("eat_ticks", 0) <= 0:
                 _pay(sim, c, events, "finished")
                 _remove(sim, c, events)
-        elif c.get("patience_ticks", 1) <= 0:
+        elif c["patience_ticks"] <= 0:
             sim.reputation = _clamp_rep(sim, sim.reputation + sim.t["left_reputation_delta"])
             events.append(("customer_left", {"customer_id": c["id"], "table_id": c["table_id"],
                                              "order_id": _order_id(c), "reason": "patience",
