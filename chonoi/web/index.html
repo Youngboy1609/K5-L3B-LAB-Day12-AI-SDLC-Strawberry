@@ -272,8 +272,8 @@ function clip(s, maxW) {
   return s + "…";
 }
 // Xếp các mảnh chữ thành nhiều dòng vừa maxW px (không cắt mất mảnh nào). Mảnh dài hơn cả dòng thì tách theo từ.
-function wrapParts(parts, sep, maxW, size) {
-  setFont(size);
+function wrapParts(parts, sep, maxW, size, bold) {
+  setFont(size, bold);
   const lines = [];
   let cur = "";
   parts.forEach((part) => {
@@ -283,8 +283,19 @@ function wrapParts(parts, sep, maxW, size) {
     cur = part;
   });
   if (cur) lines.push(cur);
-  if (sep === " ") return lines;
-  return lines.flatMap((ln) => (ctx.measureText(ln).width <= maxW ? [ln] : wrapParts(ln.split(" "), " ", maxW, size)));
+  if (sep === " ") return lines.flatMap((ln) => (ctx.measureText(ln).width <= maxW ? [ln] : breakChars(ln, maxW)));
+  return lines.flatMap((ln) => (ctx.measureText(ln).width <= maxW ? [ln] : wrapParts(ln.split(" "), " ", maxW, size, bold)));
+}
+// Một từ dài hơn cả dòng (cửa sổ rất hẹp): tách theo ký tự thay vì cắt mất chữ.
+function breakChars(s, maxW) {
+  const out = [];
+  let cur = "";
+  for (const ch of s) {
+    if (cur && ctx.measureText(cur + ch).width > maxW) { out.push(cur); cur = ""; }
+    cur += ch;
+  }
+  if (cur) out.push(cur);
+  return out;
 }
 const wrapWords = (s, maxW) => wrapParts(String(s).split(" "), " ", maxW, HUD);
 function bar(x, y, w, h, frac, color, label) {
@@ -309,8 +320,12 @@ function eventLog(w, h) {
   ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect(w - maxW - 24, y0 - 4, maxW + 14, ev.length * LH + 8);
   ev.forEach((e, i) => text(`t${e.tick} ${e.name} ${brief(e.data)}`, w - 14, y0 + (i + 1) * LH - 6, { align: "right", color: "#cfd8dc", maxW }));
 }
-// Chú thích phím ở góc dưới trái (chừa chỗ cho FPS bên phải).
-function helpLine(w, h, s) { text(s, 14, h - 12, { color: "#9fb3c0", maxW: w - 140 }); }
+// Chú thích phím ở góc dưới trái: tự xuống dòng giữa các mục (không cắt chữ), luôn chừa cột FPS bên phải.
+const FPS_RESERVE = 130;
+function helpLines(w, s) { return wrapParts(s.split(" · "), " · ", Math.max(120, w - 28 - FPS_RESERVE), HUD); }
+function drawHelp(lines, h) {
+  lines.forEach((ln, i) => text(ln, 14, h - 12 - (lines.length - 1 - i) * LH, { color: "#9fb3c0" }));
+}
 function banner(msg, w, y) {
   setFont(HUD, true);
   const bw = Math.min(w - 32, ctx.measureText(msg).width + 32);
@@ -333,7 +348,23 @@ function drawGather(w, h) {
   const meta = snap.meta || {};
   const b = meta.bounds || { x: [0, 100], d: [0, 30] };
   const X = b.x[1], D = b.d[1], SKY = 6;
-  const top = 78, bottom = 104;   // trên: 2 hàng HUD · dưới: ô giỏ, dòng giỏ, dòng phím
+  // Đáy màn hình (tính từ dưới lên): dòng phím (tự xuống dòng) → dòng giỏ (tự xuống dòng) → hàng ô giỏ.
+  const help = helpLines(w, "WASD/mũi tên bơi · E hái / cập bến · Space bắt cá · R chơi lại · L nhật ký");
+  const hold = Array.isArray(snap.hold) ? snap.hold : [];
+  const holdCount = num(snap.hold_count) ? snap.hold_count : (Array.isArray(snap.hold) ? snap.hold.length : null);
+  const hasHold = holdCount !== null && num(snap.hold_capacity) && snap.hold_capacity > 0;
+  const cap = hasHold ? snap.hold_capacity : 0, full = hasHold && holdCount >= cap;
+  let holdLines = [];
+  if (hasHold) {
+    const names = {}; hold.forEach((k) => (names[k] = (names[k] || 0) + 1));
+    const parts = ["Giỏ " + holdCount + "/" + cap].concat(full ? ["Giỏ đầy"] : [], Object.keys(names).map((k) => (KIND_NAME[k] || k) + "×" + names[k]));
+    holdLines = wrapParts(parts, " · ", w - 28, HUD);
+  }
+  const helpTop = h - 12 - (help.length - 1) * LH - 18;                 // mép trên dòng phím đầu tiên
+  const holdBase = helpTop - 8 - (holdLines.length - 1) * LH;           // baseline dòng giỏ đầu tiên
+  const sz = hasHold ? Math.max(10, Math.min(30, (w - 28) / cap - 4)) : 0;
+  const slotY = holdBase - 18 - 8 - sz;
+  const top = 78, bottom = h - (hasHold ? slotY : helpTop) + 8;          // trên: 2 hàng HUD
   const s = Math.max(1, Math.min((w - 20) / (X + 4), (h - top - bottom) / (D + SKY + 1)));
   const ox = (w - s * (X + 4)) / 2 + 2 * s, oy = top + SKY * s;
   const sx = (x) => ox + x * s, sy = (d) => oy + d * s;
@@ -353,7 +384,9 @@ function drawGather(w, h) {
   ctx.fillStyle = "#8d6e4b"; ctx.fillRect(sx(dp[0] - 1.5), sy(-0.7), 3 * s, 0.9 * s);
   ctx.fillStyle = "#b9503a"; ctx.beginPath(); ctx.moveTo(sx(dp[0] - 1.8), sy(-0.7)); ctx.lineTo(sx(dp[0]), sy(-2.4)); ctx.lineTo(sx(dp[0] + 1.8), sy(-0.7)); ctx.fill();
   ctx.strokeStyle = "rgba(255,230,150,.7)"; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(sx(dp[0]), sy(dp[1]), dr * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-  text("Bến (E)", sx(dp[0]), sy(-2.8), { align: "center", color: "#5a3a22", bold: true });
+  setFont(HUD, true);
+  const benHalf = ctx.measureText("Bến (E)").width / 2;   // giữ nhãn bến trong màn hình khi cửa sổ hẹp
+  text("Bến (E)", Math.max(6 + benHalf, sx(dp[0])), sy(-2.8), { align: "center", color: "#5a3a22", bold: true });
   // nút hái (bỏ nhãn id cho gọn; còn số giây mọc lại)
   (snap.nodes || []).forEach((n) => {
     const ready = n.ready !== false;
@@ -399,29 +432,27 @@ function drawGather(w, h) {
     x += text(hs, x, 35, { size: 26, color: "#ff6b81" }) + 8;
     x += text(`Máu ${p.hp}/${p.hp_max}`, x, 33, { color: "#ffb3bf" }) + GAP;
   }
-  if (hasPos) text("Sâu " + Math.max(0, p.pos[1]).toFixed(1) + " m", x, 33, { color: "#cfe8f5" });
-  // HUD hàng 2: cảnh báo oxy · hồi bắt cá
+  // Độ sâu: ở hàng 1 nếu còn chỗ, cửa sổ hẹp thì xuống đầu hàng 2.
+  const depthTxt = hasPos ? "Sâu " + Math.max(0, p.pos[1]).toFixed(1) + " m" : null;
+  setFont(HUD);
+  const depthRow1 = depthTxt && x + ctx.measureText(depthTxt).width <= w - 14;
+  if (depthRow1) text(depthTxt, x, 33, { color: "#cfe8f5" });
+  // HUD hàng 2: (độ sâu) · cảnh báo oxy · hồi bắt cá
   let x2 = 14;
+  if (depthTxt && !depthRow1) x2 += text(depthTxt, x2, 66, { color: "#cfe8f5" }) + GAP;
   if (lowOxy) x2 += text("Sắp hết oxy — lên thở!", x2, 66, { size: 20, bold: true, color: "#ff6b6b" }) + GAP;
   if (p && num(p.catch_cd_ticks) && p.catch_cd_ticks > 0) text("Hồi bắt cá " + (p.catch_cd_ticks / 60).toFixed(1) + "s", x2, 66, { color: "#9fb3c0" });
   // giỏ (khoang) dưới — số trong giỏ: ưu tiên hold_count của snapshot, không có thì đếm mảng hold.
-  const hold = Array.isArray(snap.hold) ? snap.hold : [];
-  const holdCount = num(snap.hold_count) ? snap.hold_count : (Array.isArray(snap.hold) ? snap.hold.length : null);
-  if (holdCount !== null && num(snap.hold_capacity) && snap.hold_capacity > 0) {
-    const cap = snap.hold_capacity, full = holdCount >= cap;
-    const sz = Math.max(10, Math.min(30, (w - 28) / cap - 4)), y0 = h - 96;
+  if (hasHold) {
     for (let i = 0; i < cap; i++) {
       const x0 = 14 + i * (sz + 4);
-      ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fillRect(x0, y0, sz, sz);
-      if (i < holdCount) { ctx.fillStyle = hold[i] ? kc(hold[i]) : "#bbbbbb"; ctx.fillRect(x0 + 3, y0 + 3, sz - 6, sz - 6); }
-      if (full) { ctx.strokeStyle = "#ef5350"; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, y0 + 1, sz - 2, sz - 2); }
+      ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fillRect(x0, slotY, sz, sz);
+      if (i < holdCount) { ctx.fillStyle = hold[i] ? kc(hold[i]) : "#bbbbbb"; ctx.fillRect(x0 + 3, slotY + 3, sz - 6, sz - 6); }
+      if (full) { ctx.strokeStyle = "#ef5350"; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, slotY + 1, sz - 2, sz - 2); }
     }
-    const names = {}; hold.forEach((k) => (names[k] = (names[k] || 0) + 1));
-    const kinds = Object.keys(names).map((k) => (KIND_NAME[k] || k) + "×" + names[k]).join(", ");
-    text("Giỏ " + holdCount + "/" + cap + (full ? " · Giỏ đầy" : "") + (kinds ? " · " + kinds : ""), 14, h - 42,
-         { color: full ? "#ff6b6b" : "#cfd8dc", bold: full, maxW: w - 28 });
+    holdLines.forEach((ln, i) => text(ln, 14, holdBase + i * LH, { color: full ? "#ff6b6b" : "#cfd8dc" }));
   }
-  helpLine(w, h, "WASD/mũi tên bơi · E hái / cập bến · Space bắt cá · R chơi lại · L nhật ký");
+  drawHelp(help, h);
 }
 
 // ----- cảnh QUÁN: nhìn từ trên xuống, x sang phải, z lên (bắc) -----
@@ -478,11 +509,15 @@ function drawSidePanel(x0, y0, pw, yMax) {
     const st = CUSTOMER_STATE[c.state] || (c.state ? String(c.state) : "?");
     const pat = num(c.patience_ticks_left) ? Math.ceil(c.patience_ticks_left / 60) + "s" : "–";
     const right = st + " " + pat;
+    const colW = inner - tblW;   // bề ngang cột món (bên phải cột bàn)
+    const name = dishName(c.dish_id) || "?";
     setFont(HUD);
-    const dishW = Math.max(80, inner - tblW - ctx.measureText(right).width - 14);
-    const dish = wrapWords(dishName(c.dish_id) || "?", dishW);
+    // Đủ chỗ thì món và trạng thái chung một dòng (trạng thái canh phải); không thì trạng thái xuống dòng riêng.
+    const sameLine = ctx.measureText(name).width + 16 + ctx.measureText(right).width <= colW;
+    const dish = sameLine ? [name] : wrapWords(name, colW);
+    const status = sameLine ? [] : wrapWords(right, colW);
     const col = c.state === "waiting" ? "#f4b6c2" : c.state === "eating" ? "#a5d6a7" : "#e8eef2";
-    return { c, right, dish, dishW, col, hgt: dish.length * LH + gap };
+    return { c, right, dish, status, sameLine, col, hgt: (dish.length + status.length) * LH + gap };
   });
   // dàn chiều cao
   let used = pad + top.length * LH + (top.length && hasCust ? 10 : 0) + (hasCust ? LH + 4 : 0);
@@ -506,8 +541,9 @@ function drawSidePanel(x0, y0, pw, yMax) {
   if (!list.length) { text("(chưa có khách)", x0 + pad, y, { color: "#9fb3c0" }); return; }
   shown.forEach((r) => {
     text(String(r.c.table_id ?? "?"), x0 + pad, y, { bold: true, maxW: tblW - 4 });
-    r.dish.forEach((ln, i) => text(ln, x0 + pad + tblW, y + i * LH, { maxW: r.dishW }));
-    text(r.right, x0 + pw - pad, y, { align: "right", color: r.col });
+    r.dish.forEach((ln, i) => text(ln, x0 + pad + tblW, y + i * LH));
+    if (r.sameLine) text(r.right, x0 + pw - pad, y, { align: "right", color: r.col });
+    else r.status.forEach((ln, i) => text(ln, x0 + pad + tblW, y + (r.dish.length + i) * LH, { color: r.col }));
     y += r.hgt;
   });
   if (more) text(`+${more} khách nữa`, x0 + pad, y, { color: "#9fb3c0" });
@@ -523,12 +559,16 @@ function drawQuan(w, h) {
   if (num(snap.money)) stats.push(`Tiền ${snap.money}k`);
   if (num(snap.reputation)) stats.push(`uy tín ${snap.reputation.toFixed(1)}`);
   if (num(snap.score)) stats.push(`điểm ${snap.score}`);
-  if (stats.length) text(stats.join(" · "), x, 33, { bold: true, maxW: w - x - 14 });
+  // Tiền · uy tín · điểm: hết chỗ thì xuống dòng giữa các mục (không cắt "…"), các dòng sau thẳng cột với dòng đầu.
+  const statLines = stats.length ? wrapParts(stats, " · ", Math.max(120, w - x - 14), HUD, true) : [];
+  statLines.forEach((ln, i) => text(ln, x, 33 + i * LH, { bold: true }));
+  const khoY = 62 + Math.max(0, statLines.length - 1) * LH;
   // Kho khả dụng: tự xuống dòng giữa các loại, không cắt mất loại nào.
   const stockParts = quanStockLine();
   const kho = stockParts ? wrapParts(stockParts, " · ", w - 28, HUD) : [];
-  kho.forEach((ln, i) => text(ln, 14, 62 + i * LH, { color: "#cfd8dc", maxW: w - 28 }));
-  const top = kho.length ? 62 + (kho.length - 1) * LH + 18 : 50, bottom = 44;
+  kho.forEach((ln, i) => text(ln, 14, khoY + i * LH, { color: "#cfd8dc" }));
+  const help = helpLines(w, "WASD/mũi tên đi · E tương tác (bếp / bàn) · R chơi lại · L nhật ký");
+  const top = (kho.length ? khoY + (kho.length - 1) * LH : khoY - LH) + 18, bottom = help.length * LH + 20;   // đáy chừa đủ số dòng phím
   // khung bên phải (bếp, tay, khách) + bản đồ quán bên trái
   const hasPanel = Array.isArray(snap.customers) || Array.isArray(snap.stoves) || "hand" in snap;
   const panelW = hasPanel ? Math.round(Math.min(w * 0.45, Math.max(300, Math.min(420, w * 0.32)))) : 0;
@@ -572,7 +612,7 @@ function drawQuan(w, h) {
     if (snap.hand) text("🍲", px, py - 0.6 * s - 4, { align: "center", size: 22 });
   }
   if (hasPanel) drawSidePanel(w - panelW - 10, top, panelW, h - bottom);
-  helpLine(w, h, "WASD/mũi tên đi · E tương tác (bếp / bàn) · R chơi lại · L nhật ký");
+  drawHelp(help, h);
 }
 
 // ---------- FPS: trung bình theo từng 1 giây (đo AC-P2-03) ----------
