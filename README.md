@@ -32,7 +32,7 @@ python3 -m chonoi.live --mode quan --inventory kho.json
 
 **Chơi cả ngày (Phase 2)** dùng lệnh `python3 -m chonoi.live --mode day --days 5`. Manifest v1.1 hiện dùng [số đề xuất của nhóm](docs/clarify.md#preset-v11-đề-xuất-cho-p2-01) cho các ô Ticket-02 chưa cung cấp. Màn giới thiệu, kết quả và pause đều dừng mô phỏng.
 
-**Xem thử màn hình bằng dữ liệu mẫu** (khi server đang chạy, hoặc mở thẳng file `chonoi/web/index.html`): thêm `?demo=shop`, `?demo=result`, `?demo=summary` hoặc `?demo=pause` vào địa chỉ, ví dụ http://127.0.0.1:8000/?demo=shop. Chế độ này không gửi gì lên máy chủ.
+**Xem thử màn hình bằng dữ liệu mẫu** (khi server đang chạy, hoặc mở thẳng file `chonoi/web/index.html`): thêm `?demo=shop`, `?demo=result`, `?demo=summary`, `?demo=pause`, `?demo=hold` (giỏ theo độ tươi) hoặc `?demo=kho` (kho quán theo độ tươi) vào địa chỉ, ví dụ http://127.0.0.1:8000/?demo=shop. Chế độ này không gửi gì lên máy chủ.
 
 **Điểm:** `score = earned + 100 × floor(reputation)`: tổng tiền kiếm được trong ca, cộng 100 điểm cho mỗi mức uy tín tròn (uy tín làm tròn xuống).
 
@@ -43,6 +43,15 @@ PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
 ```
 
 **File kho:** gốc có một khóa `"items"`, ánh xạ 4 mã nguyên liệu `bong_sung`, `bong_dien_dien`, `ca_linh`, `ca_loc` tới số nguyên không âm; loại có lượng 0 thì bỏ. Ví dụ: `{"items":{"bong_sung":2,"ca_loc":1}}`, xem [`docs/contracts/inventory.sample.json`](docs/contracts/inventory.sample.json).
+
+**Kho v1.2 (độ tươi, Phase 3).** Khi `game.contract.json` có `"contract_version": "1.2"`, file kho là mảng cá thể, ví dụ `{"items":[{"id":"I1","kind":"ca_linh","fresh":99.99167}]}`. Mỗi nguyên liệu có ID riêng và độ tươi từ 0 tới 100; `fresh < 30` là ươn, đúng 30 vẫn tươi. File kiểu đếm cũ bị từ chối với mã 2. Lệnh chạy không đổi:
+
+```bash
+python3 -m chonoi.live --mode gather --inventory-out kho.json
+python3 -m chonoi.live --mode quan --inventory kho.json
+```
+
+Cách nhận biết trên màn hình: buổi sáng, dòng giỏ liệt kê từng món kèm độ tươi (ví dụ `cá linh 99.9`); món ươn ghi `ƯƠN`, ô trong giỏ bị mờ và có dấu X, vạch dưới ô chuyển đỏ. Buổi tối, dòng `Còn cấp được` chỉ đếm hàng chưa ươn và chưa có khách giữ; trong ngoặc vuông là tổng tồn, số đang giữ và số ươn. Màn Buổi tối và Shop hiện tổng bàn giao, độ tươi thấp nhất và số món ươn. Với file v1.0/v1.1, HUD vẫn hiện theo số đếm như trước.
 
 Thành viên và phân công: xem [`TEAM.md`](TEAM.md).
 
