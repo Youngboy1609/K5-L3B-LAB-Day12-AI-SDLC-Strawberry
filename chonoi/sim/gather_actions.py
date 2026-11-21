@@ -41,7 +41,7 @@ def advance_nodes(sim, events):
 def try_harvest(sim, events):
     """Hái nút `ready` gần nhất trong `interact_radius` (đã ở mặt nước do step() gate).
 
-    Event: `gather` {node_id, kind, count} khi hái được, hoặc `hold_full` khi
+    Event: `gather` {node_id, kind, amount} khi hái được, hoặc `hold_full` khi
     giỏ không đủ chỗ cho toàn bộ sản lượng (xem chú thích payload ở file head).
     """
     node, best_d = None, None
@@ -61,7 +61,7 @@ def try_harvest(sim, events):
     for _ in range(count):
         sim.hold.append(node["kind"])
     node["regrow_ticks"] = int(round(sim.t["regrow_s"] * TICK))
-    events.append(("gather", {"node_id": node["id"], "kind": node["kind"], "count": count}))
+    events.append(("gather", {"node_id": node["id"], "kind": node["kind"], "amount": count}))
     return True
 
 
