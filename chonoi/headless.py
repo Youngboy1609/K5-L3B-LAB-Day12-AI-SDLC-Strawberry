@@ -7,10 +7,11 @@ import argparse
 import os
 import sys
 
+from . import inventory as inventory_adapter
 from .contract import load_contract
 from .errors import BadInput
 from .inputs import BUTTONS_V11, BUTTONS_V10, load_frames
-from .inventory import ingredient_kinds, read_inventory
+from .inventory import KINDS_P2, ingredient_kinds, read_inventory
 from .runner import run
 from .scenario import load_scenario
 
@@ -47,7 +48,7 @@ def main(argv=None) -> int:
     try:
         contract = load_contract()
         version = contract.get("contract_version", "1.0")
-        if a.mode == "day" and version != "1.1":
+        if a.mode == "day" and version not in ("1.1", "1.2"):
             raise BadInput("--mode day chưa hỗ trợ ở contract v1.0 (có từ v1.1)")
         if a.mode == "day" and a.days is not None and not 1 <= a.days <= 5:
             raise BadInput("--days phải là số nguyên trong [1, 5]")
@@ -69,11 +70,18 @@ def main(argv=None) -> int:
         paths = [os.path.abspath(x) for x in outs + ins]
         if len(set(paths)) != len(paths):
             raise BadInput("các đường dẫn đầu vào/đầu ra phải khác nhau")
+        if version == "1.2" and not hasattr(inventory_adapter, "validate_item_list"):
+            raise BadInput("contract v1.2 cần adapter kho cá thể")
         tuning = contract["tuning"]
         scenario = load_scenario(a.scenario, a.mode, tuning, version)
-        frames = load_frames(a.inputs, buttons=BUTTONS_V11 if version == "1.1" else BUTTONS_V10,
-                             allow_buy=(version == "1.1"))
-        inventory = read_inventory(a.inventory, ingredient_kinds(version)) if a.inventory else None
+        frames = load_frames(a.inputs, buttons=BUTTONS_V11 if version in ("1.1", "1.2") else BUTTONS_V10,
+                             allow_buy=(version in ("1.1", "1.2")))
+        inventory = None
+        if a.inventory:
+            if version == "1.2":
+                inventory = read_inventory(a.inventory, KINDS_P2, contract_version=version)
+            else:
+                inventory = read_inventory(a.inventory, ingredient_kinds(version))
         if inventory is not None and "stock" in scenario:
             raise BadInput("vừa có quan.stock vừa có --inventory")
     except BadInput as e:

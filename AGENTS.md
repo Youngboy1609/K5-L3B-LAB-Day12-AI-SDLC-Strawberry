@@ -11,11 +11,14 @@
 
 - QA Phase 2: `PYTHONPATH=tests:. python3 -m unittest test_phase2_regression test_phase2_day test_phase2_fish -v`. Smoke `day` chạy trực tiếp với manifest v1.1 của repo. Cách chạy ở `docs/proof/phase-2/`.
 
+- QA điều phối Phase 3: `PYTHONPATH=tests:. python3 -m unittest test_phase3_day_version -v`.
+
 ## Cấu trúc & quy ước
 - (Starter Python là TÙY CHỌN; nhóm có thể dùng ngôn ngữ khác nếu giữ Test Contract.) Khung do giảng viên cấp: `chonoi/{headless,inputs,scenario,contract,rng,ids,jsonl,inventory,runner,live}.py` và `chonoi/web/`. Hạn chế sửa; nếu phải sửa thì báo cả nhóm và ghi lại lý do.
 - Luật chơi của nhóm: `chonoi/sim/gather.py`, `chonoi/sim/quan.py` (tìm `TODO(nhóm)`).
 - Phase 1: [quyền sửa file và thứ tự tích hợp](docs/plan/phase-1-tasks.md). Kiểm cấu trúc fixture quán trong `scenario.py`; kiểm liên kết đơn, phần giữ và kho thật khi dựng `QuanSim`, trước khi mở JSONL.
 - Phase 2: [quyền sửa file và thứ tự tích hợp](docs/plan/phase-2-tasks.md). `DaySession` điều phối các pha và Shop, `V11Session` xử lý pause ở mode độc lập. Khi ghép live, khởi tạo `LiveInputs(buttons=BUTTONS_V11, allow_buy=True)` để nhận lệnh mua một lần. Headless `day` bàn giao kho trong bộ nhớ và chỉ thay file JSONL đích sau khi chạy thành công.
+- Phase 3: [chia file và smoke phút 20](docs/plan/phase-3-tasks.md). Truyền `contract_version` qua CLI, fixture, Day và hai engine. Giữ manifest v1.1 trong lúc ghép các lát kho cá thể và kiểm trước khi bật v1.2. [ADR kho và độ tươi](docs/adr/0001-freshness-inventory.md)
 - Cấu hình Phase 2 hiện dùng `tuning.day.day_plans`, `tuning.day.shop_ticks` và `tuning.day.upgrades`. Các giá trị đề xuất trong manifest cần đối chiếu bảng chuẩn [P2-01](docs/clarify.md).
 - **Số liệu chỉ đọc từ `game.contract.json` / dữ liệu**, không hard-code trong luật.
 - Mọi số ngẫu nhiên đi qua `Streams` (`chonoi/rng.py`); không dùng `random` toàn cục, không dùng đồng hồ hệ thống.

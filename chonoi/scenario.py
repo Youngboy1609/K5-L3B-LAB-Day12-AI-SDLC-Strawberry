@@ -6,9 +6,11 @@ phải có đúng một món, khách eating thiếu giá/tip...) — xem PRD-0 m
 """
 
 import json
+from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 
 from .errors import BadInput
-from .inventory import NODE_KINDS_P1, NODE_KINDS_P2, ingredient_kinds, validate_items
+from .inventory import KINDS_P2, NODE_KINDS_P1, NODE_KINDS_P2, ingredient_kinds, validate_items
 
 GATHER_KEYS = {"player", "hold", "nodes", "fish", "random_fish", "time_left_ticks"}
 GATHER_KEYS_V11 = GATHER_KEYS | {"monsters"}
@@ -38,12 +40,14 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
         return {}
     try:
         with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-    except (OSError, ValueError) as e:
+            data = json.load(f, parse_float=Decimal) if contract_version == "1.2" else json.load(f)
+    except (OSError, ValueError, InvalidOperation) as e:
         raise BadInput(f"không đọc được scenario {path}: {e}")
+    if contract_version == "1.2":
+        data = _normalize_scenario_numbers(data)
     if mode == "day":
-        if contract_version != "1.1":
-            raise BadInput("--mode day requires contract_version 1.1")
+        if contract_version not in ("1.1", "1.2"):
+            raise BadInput("--mode day requires contract_version 1.1 or 1.2")
         if not isinstance(data, dict) or not set(data) <= {"day", "gather", "quan"}:
             raise BadInput("scenario day chỉ được có khối day, gather hoặc quan")
         block = data.get("day", {})
@@ -78,7 +82,7 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
                 child = data[child_mode]
                 if not isinstance(child, dict):
                     raise BadInput(f"khối {child_mode} phải là object")
-                allowed = (GATHER_KEYS_V11 if contract_version == "1.1" else GATHER_KEYS) if child_mode == "gather" else QUAN_KEYS
+                allowed = (GATHER_KEYS_V11 if contract_version in ("1.1", "1.2") else GATHER_KEYS) if child_mode == "gather" else QUAN_KEYS
                 extra = set(child) - allowed
                 if extra:
                     raise BadInput(f"trường lạ/chưa hỗ trợ trong {child_mode}: {sorted(extra)}")
@@ -94,6 +98,8 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
                     child_tuning = json.loads(json.dumps(tuning))
                     catalog = tuning.get("day", {}).get("upgrades", {})
                     for upgrade, level in block["upgrades"].items():
+                        if level == 0:
+                            continue
                         for path, value in catalog[upgrade]["levels"][level]["effects"].items():
                             if path in ("gather.hp_max", "gather.oxygen_max_s"):
                                 child_tuning["gather"][path.split(".")[1]] = value
@@ -110,7 +116,7 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
     block = data.get(mode, {})
     if not isinstance(block, dict):
         raise BadInput(f"khối {mode} phải là object")
-    allowed = (GATHER_KEYS_V11 if contract_version == "1.1" else GATHER_KEYS) if mode == "gather" else QUAN_KEYS
+    allowed = (GATHER_KEYS_V11 if contract_version in ("1.1", "1.2") else GATHER_KEYS) if mode == "gather" else QUAN_KEYS
     extra = set(block) - allowed
     if extra:
         raise BadInput(f"trường lạ/chưa hỗ trợ trong {mode}: {sorted(extra)}")
@@ -206,11 +212,11 @@ def _pos(name, pos, bounds, axes=("x", "d")):
 def _validate_gather(b, tuning, contract_version="1.0"):
     g = tuning["gather"]
     bounds = g["bounds"]
-    node_kinds = NODE_KINDS_P2 if contract_version == "1.1" else NODE_KINDS_P1
+    node_kinds = NODE_KINDS_P2 if contract_version in ("1.1", "1.2") else NODE_KINDS_P1
     fish_kinds = FISH_KINDS
-    if contract_version == "1.1" and "ca_keo" in g["fish_yield"]:
+    if contract_version in ("1.1", "1.2") and "ca_keo" in g["fish_yield"]:
         fish_kinds = (*fish_kinds, "ca_keo")
-    kinds = ingredient_kinds(contract_version)
+    kinds = KINDS_P2 if contract_version == "1.2" else ingredient_kinds(contract_version)
     for arr in ("nodes", "fish"):
         if arr in b:
             _check_ids(arr, b[arr])
@@ -224,7 +230,9 @@ def _validate_gather(b, tuning, contract_version="1.0"):
         raise BadInput("random_fish phải là boolean")
     if "hold" in b:
         h = b["hold"]
-        if not isinstance(h, list) or any(k not in kinds for k in h):
+        if contract_version == "1.2":
+            _validate_item_fixture(h, kinds)
+        elif not isinstance(h, list) or any(k not in kinds for k in h):
             raise BadInput("hold phải là mảng id nguyên liệu hợp lệ")
         if len(h) > g["hold_capacity"]:
             raise BadInput("hold vượt sức chứa")
@@ -265,7 +273,7 @@ def _validate_gather(b, tuning, contract_version="1.0"):
             _nonneg_int(f"nodes.{n['id']}.regrow_ticks", n["regrow_ticks"])
     for f in b.get("fish", []):
         allowed_fish = {"id", "kind", "pos", "heading_deg"}
-        if contract_version == "1.1":
+        if contract_version in ("1.1", "1.2"):
             allowed_fish.add("age_ticks")
         extra = set(f) - allowed_fish
         if extra:
@@ -282,12 +290,15 @@ def _validate_gather(b, tuning, contract_version="1.0"):
 
 
 def _validate_quan(b, tuning, contract_version):
-    kinds = ingredient_kinds(contract_version)
+    kinds = KINDS_P2 if contract_version == "1.2" else ingredient_kinds(contract_version)
     for arr in ("stoves", "tables", "customers"):
         if arr in b:
             _check_ids(arr, b[arr])
     if "stock" in b:
-        validate_items(b["stock"], kinds)
+        if contract_version == "1.2":
+            _validate_item_fixture(b["stock"], kinds)
+        else:
+            validate_items(b["stock"], kinds)
     if "reputation" in b:
         value = b["reputation"]
         q = tuning["quan"]
@@ -310,11 +321,11 @@ def _validate_quan(b, tuning, contract_version):
                     if key in e:
                         _nonneg_int(f"stoves.{e['id']}.{key}", e[key])
                 if "dish" in e and e["dish"] is not None:
-                    _validate_quan_payload(f"stoves.{e['id']}.dish", e["dish"], menu)
+                    _validate_quan_payload(f"stoves.{e['id']}.dish", e["dish"], menu, contract_version)
                 if state in ("idle", "cooking") and e.get("ready_ticks", 0) != 0:
                     raise BadInput(f"stoves.{e['id']}: idle/cooking không có ready_ticks")
     if "hand" in b and b["hand"] is not None:
-        _validate_quan_payload("hand", b["hand"], menu)
+        _validate_quan_payload("hand", b["hand"], menu, contract_version)
     p = b.get("player", {})
     if not isinstance(p, dict) or set(p) - QUAN_PLAYER_KEYS:
         raise BadInput("quan.player chỉ có pos và vel")
@@ -341,7 +352,10 @@ def _validate_quan(b, tuning, contract_version):
             if key in c:
                 _nonneg_int(f"customers.{c['id']}.{key}", c[key])
         if "reserved" in c:
-            validate_items(c["reserved"], kinds)
+            if contract_version == "1.2":
+                _validate_id_references(f"customers.{c['id']}.reserved", c["reserved"])
+            else:
+                validate_items(c["reserved"], kinds)
         if "dish_id" in c and (not isinstance(c["dish_id"], str) or c["dish_id"] not in tuning["menu"]):
             raise BadInput(f"customers.{c['id']}.dish_id không hợp lệ")
         if c.get("state", "waiting") == "waiting" and c.get("eat_ticks_left", 0) != 0:
@@ -354,15 +368,47 @@ def _validate_quan(b, tuning, contract_version):
             if c.get("eat_ticks_left", 0) <= 0 or "base_price" not in c or "tip" not in c:
                 raise BadInput(f"customers.{c['id']}: eating cần timer dương, base_price và tip")
             dish = menu[c["dish_id"]]
-            if c["base_price"] != dish["price"]:
+            if contract_version != "1.2" and c["base_price"] != dish["price"]:
                 raise BadInput(f"customers.{c['id']}.base_price không khớp giá món")
+            if contract_version == "1.2" and c["base_price"] > dish["price"]:
+                raise BadInput(f"customers.{c['id']}.base_price vượt giá menu")
     if len(table_ids) != len(set(table_ids)):
         raise BadInput("hai khách cùng bàn")
     if "random_customers" in b and not isinstance(b["random_customers"], bool):
         raise BadInput("random_customers phải là boolean")
 
 
-def _validate_quan_payload(name, payload, menu):
+def _validate_item_fixture(items, kinds):
+    try:
+        from .inventory import validate_item_list
+    except ImportError as e:
+        raise BadInput("v1.2 fixture cần inventory.validate_item_list từ adapter Hạnh") from e
+    validate_item_list(items, kinds)
+
+
+def _normalize_scenario_numbers(value, key=None):
+    """Keep JSON decimal precision for item freshness; retain legacy float numbers elsewhere."""
+    if isinstance(value, Decimal):
+        if key != "fresh":
+            return float(value)
+        if not 0 <= value <= 100:
+            raise BadInput("fresh phải nằm trong [0, 100]")
+        return Fraction(value)
+    if isinstance(value, list):
+        return [_normalize_scenario_numbers(item) for item in value]
+    if isinstance(value, dict):
+        return {k: _normalize_scenario_numbers(v, k) for k, v in value.items()}
+    return value
+
+
+def _validate_id_references(name, refs):
+    if not isinstance(refs, list) or any(not isinstance(ref, str) or not ref for ref in refs):
+        raise BadInput(f"{name} phải là mảng ID khác rỗng")
+    if len(refs) != len(set(refs)):
+        raise BadInput(f"{name} có ID trùng")
+
+
+def _validate_quan_payload(name, payload, menu, contract_version="1.0"):
     if not isinstance(payload, dict) or set(payload) != {"order_id", "dish_id", "base_price"}:
         raise BadInput(f"{name} phải có order_id, dish_id, base_price")
     if not isinstance(payload["order_id"], str) or not payload["order_id"]:
@@ -372,5 +418,7 @@ def _validate_quan_payload(name, payload, menu):
         raise BadInput(f"{name}.dish_id không hợp lệ")
     price = payload["base_price"]
     _nonneg_int(f"{name}.base_price", price)
-    if price != menu[dish_id]["price"]:
+    if contract_version != "1.2" and price != menu[dish_id]["price"]:
         raise BadInput(f"{name}.base_price không khớp giá món")
+    if contract_version == "1.2" and price > menu[dish_id]["price"]:
+        raise BadInput(f"{name}.base_price vượt giá menu")

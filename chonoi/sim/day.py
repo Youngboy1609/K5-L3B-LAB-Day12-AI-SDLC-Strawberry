@@ -22,7 +22,10 @@ def ingredients_for(dishes, menu):
 class DaySim:
     mode = "day"
 
-    def __init__(self, tuning, scenario, seed, days=1):
+    def __init__(self, tuning, scenario, seed, days=1, *, contract_version="1.1"):
+        if contract_version not in ("1.1", "1.2"):
+            raise BadInput("DaySim cần contract_version 1.1 hoặc 1.2")
+        self.contract_version = contract_version
         self.tuning = tuning
         self.day_tuning = tuning.get("day")
         if not isinstance(self.day_tuning, dict):
@@ -47,6 +50,7 @@ class DaySim:
         self.active_upgrades = deepcopy(self.upgrades)
         self.seed = seed
         self.ids = IdAllocator()
+        self._fixture_id_map = {}
         self.day = 1
         self.days_completed = 0
         self.phase = "gather"
@@ -109,31 +113,78 @@ class DaySim:
         self.phase_tick = 0
         gs = self.scenario.get("gather", {})
         # Day fixture starts from current active levels; explicit fixture fields win (P2-03).
-        self.phase_sim = GatherSim(tuning, gs, Streams(self.seed + self.day - 1), self.ids, day=self.day)
+        if self.contract_version == "1.2":
+            try:
+                from ..inventory import new_item
+            except ImportError as e:
+                raise BadInput("v1.2 Day cần inventory.new_item từ adapter Hạnh") from e
+            # Fixture IDs are retained on D1. Later days allocate fresh IDs in
+            # source order while preserving each fixture item's original kind/fresh.
+            fixture = gs.get("hold", [])
+            if self.day == 1:
+                for item in fixture:
+                    self.ids.reserve(item["id"])
+                # The engine can age or empty its own hold without modifying the next day's template.
+                gather_scenario = deepcopy(gs)
+            else:
+                gather_scenario = dict(gs)
+                remapped = []
+                self._fixture_id_map = {}
+                for item in fixture:
+                    created = new_item(self.ids, item["kind"], item["fresh"])
+                    self._fixture_id_map[item["id"]] = created["id"]
+                    remapped.append(created)
+                if "hold" in gs:
+                    gather_scenario["hold"] = remapped
+            self.phase_sim = GatherSim(tuning, gather_scenario, Streams(self.seed + self.day - 1),
+                                       self.ids, day=self.day, contract_version=self.contract_version)
+        else:
+            self.phase_sim = GatherSim(tuning, gs, Streams(self.seed + self.day - 1), self.ids, day=self.day)
         self.phase_sim.money, self.phase_sim.earned, self.phase_sim.reputation = self.money, self.earned, self.reputation
 
     def _build_quan(self):
         from ..rng import Streams
         tuning = self._effective_tuning()
-        items = hold_to_items(self.phase_sim.hold)
-        if self.phase_sim.reason == "fainted":
-            items = {}
+        if self.contract_version == "1.2":
+            items = self.phase_sim.inventory_items()
+            if self.phase_sim.reason == "fainted":
+                items = []
+        else:
+            items = hold_to_items(self.phase_sim.hold)
+            if self.phase_sim.reason == "fainted":
+                items = {}
         qs = self.scenario.get("quan", {})
+        if self.contract_version == "1.2" and "customers" in qs and self.day > 1:
+            qs = deepcopy(qs)
+            for customer in qs["customers"]:
+                if isinstance(customer.get("reserved"), list):
+                    customer["reserved"] = [self._fixture_id_map.get(ref, ref) for ref in customer["reserved"]]
         menu_ids = list(self.plan["dishes"])
         start = {"money": self.money, "earned": self.earned, "reputation": self.reputation}
         self.phase_sim = QuanSim(tuning, qs, Streams(self.seed + self.day - 1), self.ids,
-                                 inventory=items, dish_ids=menu_ids, start=start, contract_version="1.1")
+                                 inventory=items, dish_ids=menu_ids, start=start,
+                                 contract_version=self.contract_version)
         self.phase = "quan"
         self.phase_tick = 0
 
     def snapshot(self):
         data = self.phase_sim.snapshot() if self.phase_sim and self.phase != "shop" else {}
         if self.phase == "shop":
-            data = {"stock": getattr(self, "shop_stock", {}),
+            data = {"stock": self._shop_stock_payload(),
                     "time_left_ticks": max(0, self.shop_duration - self.phase_tick)}
         return {**data, "day": self.day, "day_plan": deepcopy(self.plan),
                 "upgrades": deepcopy(self.upgrades), "active_upgrades": deepcopy(self.active_upgrades),
                 "days_completed": self.days_completed}
+
+    def _shop_stock_payload(self):
+        stock = getattr(self, "shop_stock", {} if self.contract_version == "1.1" else [])
+        if self.contract_version != "1.2":
+            return stock
+        try:
+            from ..inventory import item_payload
+        except ImportError as e:
+            raise BadInput("v1.2 Shop cần inventory.item_payload từ adapter Hạnh") from e
+        return [item_payload(item) for item in stock]
 
     def step(self, inp):
         if self.phase == "shop":
@@ -147,7 +198,7 @@ class DaySim:
             self._build_quan()
             rows.append(("quan", "phase_start", {"phase": "quan"}))
         elif self.phase_sim.done and before == "quan":
-            self.shop_stock = dict(self.phase_sim.stock)
+            self.shop_stock = list(self.phase_sim.stock) if self.contract_version == "1.2" else dict(self.phase_sim.stock)
             self.phase = "shop"
             self.phase_tick = 0
             rows.append(("shop", "phase_start", {"phase": "shop"}))
@@ -179,7 +230,7 @@ class DaySim:
             reason = "done" if inp.pressed("shop_done") else "time"
             rows.append(("shop", "shop_end", {"reason": reason}))
             self.days_completed += 1
-            self.shop_stock = {}
+            self.shop_stock = [] if self.contract_version == "1.2" else {}
             if self.days_completed >= self.days:
                 self.done, self.reason = True, "days_complete"
             else:

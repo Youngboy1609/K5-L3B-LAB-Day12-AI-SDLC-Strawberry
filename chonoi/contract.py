@@ -24,7 +24,27 @@ def load_contract(path=DEFAULT_PATH) -> dict:
             c = json.load(f)
     except (OSError, ValueError) as e:
         raise BadInput(f"không đọc được {path}: {e}")
-    validate_tuning(c.get("tuning"), c.get("contract_version", "1.0"))
+    if not isinstance(c, dict):
+        raise BadInput("manifest phải là object")
+    version = c.get("contract_version", "1.0")
+    tuning = c.get("tuning")
+    if version == "1.2":
+        freshness = c.get("freshness")
+        if not isinstance(freshness, dict) or set(freshness) != {
+                "initial", "gather_decay_per_s", "quan_decay_per_s", "spoiled_below"}:
+            raise BadInput("freshness phải có đúng initial, gather_decay_per_s, quan_decay_per_s, spoiled_below")
+        for key, value in freshness.items():
+            if not _num(value) or not (0 <= value <= 100):
+                raise BadInput(f"freshness.{key} phải là số hữu hạn trong [0, 100]")
+        if freshness["initial"] <= 0 or freshness["spoiled_below"] <= 0:
+            raise BadInput("freshness.initial và spoiled_below phải dương")
+        # Keep the manifest's root-level public shape, while making the values
+        # available to both phase engines through the existing tuning object.
+        tuning = dict(tuning) if isinstance(tuning, dict) else tuning
+        if isinstance(tuning, dict):
+            tuning["freshness"] = dict(freshness)
+    validate_tuning(tuning, version)
+    c["tuning"] = tuning
     return c
 
 
@@ -83,7 +103,7 @@ def _validate_gather(g, contract_version):
     if not isinstance(nodes, list) or not nodes:
         raise BadInput("tuning.gather.nodes phải là mảng không rỗng")
     seen, kinds = set(), set()
-    allowed_nodes = NODE_KINDS_P2 if contract_version == "1.1" else NODE_KINDS_P1
+    allowed_nodes = NODE_KINDS_P2 if contract_version in ("1.1", "1.2") else NODE_KINDS_P1
     for n in nodes:
         if not isinstance(n, dict) or not isinstance(n.get("id"), str) or n["id"] in seen:
             raise BadInput("tuning.gather.nodes: mỗi nút cần id duy nhất")

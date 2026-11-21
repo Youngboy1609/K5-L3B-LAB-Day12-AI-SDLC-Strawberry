@@ -24,6 +24,8 @@ from .sim.day import DaySim
 def build_sim(mode, tuning, scenario, seed, inventory, *, contract_version="1.0"):
     streams, ids = Streams(seed), IdAllocator()
     if mode == "gather":
+        if contract_version == "1.2":
+            return GatherSim(tuning, scenario, streams, ids, day=1, contract_version=contract_version)
         return GatherSim(tuning, scenario, streams, ids, day=1 if contract_version == "1.1" else None)
     return QuanSim(tuning, scenario, streams, ids, inventory=inventory, contract_version=contract_version)
 
@@ -44,6 +46,7 @@ class Session:
     def __init__(self, mode, tuning, scenario, seed, inventory=None, *, contract_version="1.0"):
         self.mode = mode
         self.tuning = tuning
+        self.contract_version = contract_version
         self.sim = build_sim(mode, tuning, scenario, seed, inventory, contract_version=contract_version)
         self.tick = 0
 
@@ -74,14 +77,18 @@ class Session:
     def write_inventory_if_done(self, inventory_out):
         """File kho: ghi MỘT lần khi có gather_end; chưa kết thúc thì giữ nguyên file đích."""
         if self.mode == "gather" and self.sim.done and inventory_out:
-            write_inventory(inventory_out, self.sim.inventory_items())
+            items = self.sim.inventory_items()
+            if self.contract_version == "1.2":
+                write_inventory(inventory_out, items, contract_version=self.contract_version)
+            else:
+                write_inventory(inventory_out, items)
 
 
 class V11Session(Session):
     """v1.1 single-mode session: pause advances wall ticks while simulation clocks stop."""
 
-    def __init__(self, mode, tuning, scenario, seed, inventory=None):
-        super().__init__(mode, tuning, scenario, seed, inventory, contract_version="1.1")
+    def __init__(self, mode, tuning, scenario, seed, inventory=None, *, contract_version="1.1"):
+        super().__init__(mode, tuning, scenario, seed, inventory, contract_version=contract_version)
         self.sim_tick = 0
         self.phase_tick = 0
         self.paused = False
@@ -118,8 +125,8 @@ class V11Session(Session):
 
 
 class DaySession:
-    def __init__(self, tuning, scenario, seed, days):
-        self.sim = DaySim(tuning, scenario, seed, days)
+    def __init__(self, tuning, scenario, seed, days, *, contract_version="1.1"):
+        self.sim = DaySim(tuning, scenario, seed, days, contract_version=contract_version)
         self.tuning, self.mode = tuning, "day"
         self.tick = 0
         self.sim_tick = 0
@@ -177,12 +184,12 @@ class DaySession:
 def run(mode, tuning, scenario, seed, frames, ticks, out_path, snapshot_every, inventory=None,
         inventory_out=None, contract_version="1.0", days=1):
     if mode == "day":
-        sess = DaySession(tuning, scenario, seed, days)
-    elif contract_version == "1.1":
-        sess = V11Session(mode, tuning, scenario, seed, inventory)
+        sess = DaySession(tuning, scenario, seed, days, contract_version=contract_version)
+    elif contract_version in ("1.1", "1.2"):
+        sess = V11Session(mode, tuning, scenario, seed, inventory, contract_version=contract_version)
     else:
         sess = Session(mode, tuning, scenario, seed, inventory)
-    player = InputPlayer(frames, buttons=BUTTONS_V11) if contract_version == "1.1" else InputPlayer(frames)
+    player = InputPlayer(frames, buttons=BUTTONS_V11) if contract_version in ("1.1", "1.2") else InputPlayer(frames)
     target = out_path
     temp = None
     if mode == "day":
