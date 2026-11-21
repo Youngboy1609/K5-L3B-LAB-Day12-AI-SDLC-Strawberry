@@ -1,21 +1,24 @@
 # TEAM
 
-**Tên nhóm:** …  **Số người:** …  (khớp `team_size` trong `game.contract.json`)
+**Tên nhóm** Strawberry · **Số người** 6 · **Trưởng nhóm** Hồ Trọng Nghĩa (`Youngboy1609`)
 
 | Thành viên | GitHub handle | Module chính | Vai quy trình | Người dự phòng cho |
 |---|---|---|---|---|
-| | | `sim/gather` | | |
-| | | `sim/quan` | | |
-| | | `client/ui` | | |
-| | | `qa` | | |
+| Hồ Trọng Nghĩa | `Youngboy1609` | `quan` — lát 3, khách và kho | PO, Integrator | Nguyễn Ngọc Quang |
+| Phạm Đăng Quang | `DanggQuangg` | `gather` — lát 1, bơi và sinh tồn | Ghép vòng tick `gather` | Lương Thị Hồng Hạnh |
+| Trương Thu Hà | `TruongThuHa` | UI/HUD hai buổi, hướng dẫn chạy | Điều phối demo và kiểm HUD | Nguyễn Minh Quân |
+| Nguyễn Ngọc Quang | `shoxieje` | `quan` — lát 4, bếp và phục vụ | Theo dõi mốc bàn giao | Hồ Trọng Nghĩa |
+| Nguyễn Minh Quân | `nmqdhtb` | QA headless và bằng chứng | QA lead | Trương Thu Hà |
+| Lương Thị Hồng Hạnh | `hatrang200715` | `gather` — lát 2, hái và bắt cá | Kiểm bàn giao file kho | Phạm Đăng Quang |
 
-**Vai quy trình:** PO (đầu mối hỏi giảng viên, giữ `docs/clarify.md`) · Integrator (giữ `docs/contracts/`, gắn tag) · QA lead · Scrum/Release. Có thể kiêm.
+[Kế hoạch Phase 1](docs/plan/phase-1.md) · [Task theo từng người](docs/plan/phase-1-tasks.md)
 
-## Thỏa thuận làm việc nhóm (điền trong 15 phút kickoff, ≤ 10 dòng)
+## Thỏa thuận làm việc nhóm đề xuất cho kickoff
 
-- Kênh liên lạc: …
-- Khi bất đồng về thiết kế: … (ví dụ: nói 2 phút, không xong thì Integrator quyết và ghi lại lý do)
-- Khi ai đó trễ hoặc vướng quá 10 phút: … (ví dụ: nói ngay trong kênh, người dự phòng nhận việc)
-- Giờ standup giữa phase: …
-- Cách đọc code của nhau (tùy chọn): … (ví dụ: mỗi người đọc lát kế bên; PR hoặc xem trực tiếp)
-- Cách làm việc với Git: … (ví dụ: push thẳng nhánh chính / nhánh ngắn rồi gộp; thống nhất ai gắn tag)
+- Dùng kênh chat chung của nhóm để báo tiến độ, vướng mắc và link commit hoặc PR.
+- Standup ở phút 20 của mỗi phase, trong 2–3 phút. Mỗi người báo phần đã xong, việc kế tiếp và chỗ đang vướng.
+- Vướng quá 10 phút hoặc có nguy cơ trễ thì báo trên chat. Người dự phòng hỗ trợ sau khi chốt ai giữ quyền sửa file.
+- Trao đổi 2 phút khi bất đồng. Nghĩa chốt quyết định tích hợp. Nếu đề mơ hồ, Nghĩa hỏi Anh Năm hoặc giảng viên và ghi vào `docs/clarify.md`.
+- Mỗi người dùng nhánh ngắn từ cùng mốc `main` và sửa file đã nhận. Hai cặp gameplay đọc chéo diff. Quân kiểm smoke, Nghĩa gộp và gắn tag.
+- Giữ commit của từng thành viên khi gộp. Mỗi người có ít nhất 3 commit có nội dung trong cả lab. Với commit làm cặp, ghi `Co-authored-by:`.
+- Mỗi người cập nhật `docs/members/<handle>.md`. Gửi nhật ký dùng AI cho Nghĩa tổng hợp vào file chung trong từng phase.
