@@ -57,6 +57,17 @@ def advance_stoves(sim, events):
     for s in sim.stoves:  # sim.stoves đã sort theo id
         if s["state"] == "ready":
             s["ready_ticks"] += 1
+            burn_s = sim.t.get("burn_s")
+            if burn_s is not None and sim.reservations_enabled and s["ready_ticks"] > _ticks(burn_s):
+                order_id = s["dish"]["order_id"]
+                customer = next((c for c in sim.customers if c["id"] == order_id), None)
+                if customer is not None and customer.get("reservation_id"):
+                    events.append(("dish_burnt", {"stove_id": s["id"], "order_id": order_id,
+                                                   "dish_id": s["dish"]["dish_id"], "order_status": "failed"}))
+                    s.update(state="idle", dish=None, cook_ticks_left=0, ready_ticks=0)
+                    sim.fail_reservation(customer["reservation_id"], "burnt", events)
+                    _remove(sim, customer, events)
+                    continue
         elif s["state"] == "cooking":
             s["cook_ticks_left"] = max(0, s["cook_ticks_left"] - 1)
             if s["cook_ticks_left"] == 0:
@@ -158,7 +169,11 @@ def _interact_table(sim, tb, events):
     patience_total = _ticks(sim.t["patience_s"])
     left = c["patience_ticks_left"]
     price = sim.hand["base_price"]
+    if c.get("reservation_id"):
+        price = (Fraction(price) * Fraction(str(sim.tuning_reservations["price_multiplier"]))).__floor__()
     tip = 0
+    if c.get("reservation_id"):
+        patience_total = 60 * sim.tuning_tick_hz
     if patience_total > 0 and left / patience_total >= sim.t["tip_min_patience_ratio"]:
         tip = math.floor(price * sim.t["tip_rate"])
     c["state"] = "eating"
@@ -171,6 +186,11 @@ def _interact_table(sim, tb, events):
     sim.hand = None
     events.append(("served", {"order_id": dish["order_id"], "table_id": tb["id"], "dish_id": dish["dish_id"],
                               "patience_ticks_left": left, "base_price": price, "tip": tip}))
+    if c.get("reservation_id"):
+        row = next(r for r in sim.reservations if r["id"] == c["reservation_id"])
+        row["state"] = "served"
+        events.append(("reservation_served", {"id": row["id"], "table_id": row["table_id"],
+                                               "customer_id": c["id"], "base_price": price, "tip": tip}))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -216,17 +236,33 @@ def settle_customers(sim, events):
                 continue
             _pay(sim, c, events, "finished_eating" if c["eat_ticks_left"] == 0 else "closing")
         else:
+            if closing and c.get("reservation_id"):
+                continue  # Đóng các đơn đặt cùng lượt, theo thứ tự ID R.
             if c["patience_ticks_left"] > 0 and not closing:
                 continue
             sim.shift["left_closing" if closing else "left"] += 1
-            if not closing:
-                sim.reputation = _clamp_rep(sim, sim.reputation + sim.t["left_reputation_delta"])
-            events.append(("customer_left", {"customer_id": c["id"], "table_id": c["table_id"],
-                                             "order_id": c["id"], "reason": "closing" if closing else "patience",
-                                             "reputation": sim.reputation}))
+            if c.get("reservation_id"):
+                _discard_order_dishes(sim, c["id"], events)
+                sim.fail_reservation(c["reservation_id"], "closing" if closing else "patience", events)
+            else:
+                if not closing:
+                    sim.reputation = _clamp_rep(sim, sim.reputation + sim.t["left_reputation_delta"])
+                events.append(("customer_left", {"customer_id": c["id"], "table_id": c["table_id"],
+                                                 "order_id": c["id"], "reason": "closing" if closing else "patience",
+                                                 "reputation": sim.reputation}))
         _remove(sim, c, events)
 
     if closing:
+        for row in sort_by_id(sim.reservations):
+            if row["state"] == "waiting":
+                customer = next((c for c in sim.customers if c.get("reservation_id") == row["id"]), None)
+                if customer is not None:
+                    sim.shift["left_closing"] += 1
+                    _discard_order_dishes(sim, customer["id"], events)
+                    sim.fail_reservation(row["id"], "closing", events)
+                    _remove(sim, customer, events)
+            elif row["state"] not in ("served", "failed"):
+                sim.fail_reservation(row["id"], "closing", events)
         sim.done = True
         sim.reason = "time"
         events.append(("quan_end", {"reason": "time", "money": sim.money, "earned": sim.earned,
