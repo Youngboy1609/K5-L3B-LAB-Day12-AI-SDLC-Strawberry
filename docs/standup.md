@@ -2,7 +2,7 @@
 
 | Phase | Người | Đã xong | Sắp làm | Vướng gì |
 |---|---|---|---|---|
-| P1 | Hạnh | Chốt hợp đồng 3 hàm `gather_actions` với Quang (5/5 mục OK) | Viết `chonoi/sim/gather_actions.py` | — |
+| P1 | Hạnh | Chốt hợp đồng 3 hàm `gather_actions` với Quang (5/5 mục OK); viết `gather_actions.py`; review chéo ghép `DangQuang` `ba4be00`: suite 32 test OK + 3 kịch bản headless (`docked`, `fainted`, bắt tick cuối) đều đúng | Quang đẩy nhánh `DangQuang` sau review đúng; chờ ghép gather tích hợp | — |
 
 ## Chốt hợp đồng gather_actions (Hạnh ↔ Quang, 2026-11-21)
 
