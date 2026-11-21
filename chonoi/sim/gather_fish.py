@@ -31,8 +31,6 @@ import math
 
 from ..ids import sort_by_id
 
-TICK = 60.0  # trùng chonoi.sim.gather; nếu v1.1 thêm tick_hz thì đọc từ tuning
-
 
 def advance_fish(sim, events):
     """Cá bơi một bước theo `heading_deg` + `speed_m_per_s`, đập biên bằng cách kẹp.
@@ -52,8 +50,8 @@ def advance_fish(sim, events):
         speed = float(spec["speed_m_per_s"])
         rad = math.radians(f.get("heading_deg", 0.0))
         f["age_ticks"] = f.get("age_ticks", 0) + 1
-        dx = math.cos(rad) * speed / TICK
-        dd = math.sin(rad) * speed / TICK
+        dx = math.cos(rad) * speed / sim.tick_hz
+        dd = math.sin(rad) * speed / sim.tick_hz
         if dx == 0.0 and dd == 0.0:
             continue
         f["pos"][0] = min(b["x"][1], max(b["x"][0], f["pos"][0] + dx))
@@ -67,7 +65,7 @@ def maybe_spawn_fish(sim, events):
 
     Luật sinh (nội bộ hàm, cần thông báo với Quang khi ghép):
     - Đếm ngược riêng lưu trên `sim._fish_spawn_left` (khởi tạo lần gọi đầu =
-      `interval_s * TICK`): về 0 thì sinh đúng một đàn rồi đếm lại từ đầu.
+      `interval_s * tick_hz`): về 0 thì sinh đúng một đàn rồi đếm lại từ đầu.
     - Chọn kind xoay vòng theo `sim._fish_spawn_idx` (bắt đầu từ 0).
     - Vị trí + hướng xuất phát: `sim.rng.get("fish")` (Streams) — tất định
       theo seed, không dùng `random` toàn cục.
@@ -88,7 +86,7 @@ def maybe_spawn_fish(sim, events):
     if not getattr(sim, "_fish_spawn_allowed", True):
         return None
     if not hasattr(sim, "_fish_spawn_left"):
-        sim._fish_spawn_left = int(round(float(cfg["interval_s"]) * TICK))
+        sim._fish_spawn_left = int(round(float(cfg["interval_s"]) * sim.tick_hz))
         sim._fish_spawn_idx = 0
     if len(sim.fish) >= int(cfg["max"]):
         return None
@@ -104,9 +102,9 @@ def maybe_spawn_fish(sim, events):
     pos = [float(rng.uniform(area["x"][0], area["x"][1])),
            float(rng.uniform(area["d"][0], area["d"][1]))]
     fid = sim.ids.new("F")
-    sim.fish.append({"id": fid, "kind": kind, "pos": pos,
+    sim.fish.append({"id": fid, "pos": pos, "kind": kind,
                      "heading_deg": float(rng.uniform(0.0, 360.0)), "age_ticks": 0})
     sim._fish_spawn_idx += 1
-    sim._fish_spawn_left = int(round(float(cfg["interval_s"]) * TICK))
+    sim._fish_spawn_left = int(round(float(cfg["interval_s"]) * sim.tick_hz))
     events.append(("fish_spawned", {"fish_id": fid, "kind": kind, "pos": pos}))
     return fid

@@ -60,8 +60,11 @@ class GatherSim:
             src_fish = t["fish_initial"]
         else:
             src_fish = []
-        self.fish = [{"id": f["id"], "kind": f["kind"], "pos": [float(c) for c in f["pos"]],
+        self.fish = [{"id": f["id"], "pos": [float(c) for c in f["pos"]], "kind": f["kind"],
                       "heading_deg": f.get("heading_deg", 0)} for f in src_fish]
+        if self.phase2:
+            for fish, source in zip(self.fish, src_fish):
+                fish["age_ticks"] = source.get("age_ticks", 0)
         for coll in (self.nodes, self.fish, self.monsters):
             for e in coll:
                 ids.reserve(e["id"])
@@ -88,8 +91,7 @@ class GatherSim:
             "nodes": [{"id": n["id"], "pos": n["pos"], "kind": n["kind"],
                        "ready": n["regrow_ticks"] == 0, "regrow_ticks": n["regrow_ticks"]}
                       for n in sort_by_id(self.nodes)],
-            "fish": [{"id": f["id"], "pos": f["pos"], "kind": f["kind"], "heading_deg": f["heading_deg"]}
-                     for f in sort_by_id(self.fish)],
+            "fish": [dict(f) for f in sort_by_id(self.fish)],
         }
 
     # --- một bước ---------------------------------------------------------------
@@ -121,7 +123,7 @@ class GatherSim:
         # 5. hết giờ
         if self.time_left_ticks <= 0:
             self._finish("time", events)
-        elif self._fish_spawn_allowed:
+        elif self.phase2 and self._fish_spawn_allowed:
             if self.advance_fish is not None:
                 self.advance_fish(self, events)
             maybe_spawn_fish(self, events)

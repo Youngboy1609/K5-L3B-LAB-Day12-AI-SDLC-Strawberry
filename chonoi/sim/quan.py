@@ -2,6 +2,7 @@
 
 from ..ids import sort_by_id
 from ..errors import BadInput
+from ..inventory import ingredient_kinds, validate_items
 from .ramp import ramp_velocity
 from .quan_service import advance_stoves, interact, settle_customers
 
@@ -12,7 +13,8 @@ class QuanSim:
     mode = "quan"
     phase = "quan"
 
-    def __init__(self, tuning, scenario, streams, ids, inventory=None, dish_ids=None, start=None):
+    def __init__(self, tuning, scenario, streams, ids, inventory=None, dish_ids=None, start=None,
+                 *, contract_version="1.0"):
         """`dish_ids`: tập ID món trong kế hoạch Ngày (mode `day`); None = quán độc lập, bán cả menu.
         `start`: {"money", "earned", "reputation"} bàn giao từ pha trước trong `day`; None = ca mới."""
         t = tuning["quan"]
@@ -67,7 +69,7 @@ class QuanSim:
             self.customers.append(customer)
         for e in self.customers:
             ids.reserve(e["id"])
-        self._validate_fixture()
+        self._validate_fixture(ingredient_kinds(contract_version))
         start = start or {}
         self.money = start.get("money", 0)
         self.earned = start.get("earned", 0)
@@ -96,7 +98,6 @@ class QuanSim:
         by_id = {d["id"]: dict(d) for d in defaults}
         for u in updates:
             if u["id"] not in by_id:
-                from ..errors import BadInput
                 raise BadInput(f"id bếp/bàn không tồn tại: {u['id']}")
             by_id[u["id"]].update(u)
         return sort_by_id(list(by_id.values()))
@@ -126,11 +127,9 @@ class QuanSim:
                     available[kind] = available.get(kind, 0) - count
         return available
 
-    def _validate_fixture(self):
+    def _validate_fixture(self, kinds):
         """Validate linked fixture data before runner creates its output file."""
-        from ..inventory import validate_items
-
-        self.stock = validate_items(self.stock)
+        self.stock = validate_items(self.stock, kinds)
         table_ids = {table["id"] for table in self.tables}
         customer_by_id = {customer["id"]: customer for customer in self.customers}
         if any(customer["table_id"] not in table_ids for customer in self.customers):
@@ -145,7 +144,7 @@ class QuanSim:
             if not isinstance(dish_id, str) or dish_id not in self.dish_ids:
                 raise BadInput(f"customers.{customer['id']}.dish_id không thuộc menu tối nay")
             expected = self.menu[dish_id]["recipe"]
-            held = validate_items(customer.get("reserved", {}))
+            held = validate_items(customer.get("reserved", {}), kinds)
             customer["reserved"] = held
             if status == "reserved":
                 if held != expected or state != "waiting":
