@@ -44,11 +44,8 @@ def _clamp_rep(sim, value):
     return round(min(sim.t["reputation_max"], max(sim.t["reputation_min"], value)), 9)
 
 
-def _dish_payload(d, *, include_price=False) -> dict:
-    payload = {"order_id": d["order_id"], "dish_id": d["dish_id"]}
-    if include_price:
-        payload["base_price"] = d["base_price"]
-    return payload
+def _dish_payload(d) -> dict:
+    return {"order_id": d["order_id"], "dish_id": d["dish_id"]}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -65,7 +62,7 @@ def advance_stoves(sim, events):
             if s["cook_ticks_left"] == 0:
                 s["state"] = "ready"
                 s["ready_ticks"] = 0
-                events.append(("dish_ready", {"stove_id": s["id"], **_dish_payload(s["dish"], include_price=sim.item_stock)}))
+                events.append(("dish_ready", {"stove_id": s["id"], **_dish_payload(s["dish"])}))
     # burn_s = null ở preset v1.0 -> không có món cháy trong Phase 1.
 
 
@@ -148,7 +145,7 @@ def _interact_stove(sim, s, events):
         s["state"] = "idle"
         s["cook_ticks_left"] = 0
         s["ready_ticks"] = 0
-        events.append(("dish_picked", {"stove_id": s["id"], **_dish_payload(sim.hand, include_price=sim.item_stock)}))
+        events.append(("dish_picked", {"stove_id": s["id"], **_dish_payload(sim.hand)}))
     # cooking: chưa xong, không làm gì.
 
 
@@ -197,10 +194,10 @@ def _discard_order_dishes(sim, order_id, events):
     """Dọn món thuộc đơn ở bếp hoặc trên tay. Không hoàn nguyên liệu đã nấu."""
     for s in sim.stoves:
         if s["dish"] is not None and s["dish"]["order_id"] == order_id:
-            events.append(("dish_discarded", {"where": s["id"], **_dish_payload(s["dish"], include_price=sim.item_stock)}))
+            events.append(("dish_discarded", {"where": s["id"], **_dish_payload(s["dish"])}))
             s.update(state="idle", dish=None, cook_ticks_left=0, ready_ticks=0)
     if sim.hand is not None and sim.hand["order_id"] == order_id:
-        events.append(("dish_discarded", {"where": "hand", **_dish_payload(sim.hand, include_price=sim.item_stock)}))
+        events.append(("dish_discarded", {"where": "hand", **_dish_payload(sim.hand)}))
         sim.hand = None
 
 
