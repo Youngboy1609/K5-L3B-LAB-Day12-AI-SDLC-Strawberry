@@ -15,3 +15,6 @@
   Chốt hợp đồng dữ liệu 15 phút trước khi code giúp hai người ghép không giẫm chân.
   
   Kiểm thử phải chạy trong đúng môi trường/worktree của bản ghép, nhầm cwd là ra kết quả sai ngầm.
+
+- Phase 3 (kèm link commit): viết adapter kho v1.2 mảng cá thể `{id,kind,fresh}` — `validate_item_list`, `new_item`, `decay_items`, `item_payload` với `Fraction` chính xác, test biên "30.025 bốn tick Quán tươi, tick kế ươn" — `a55b108` trên `phase3/inventory-freshness`. 38/38 test mới, suite 150/150.
+- Phase 4: lát `phase4/package-docs` — README (test/headless/benchmark/soak, ≤3 lệnh chạy), CHANGELOG Phase 1–4 từ lịch sử có bằng chứng, `CREDITS.md` (không asset ngoài), [`docs/release/v1.0.0.md`](../release/v1.0.0.md), kiểm clone sạch + ZIP `git archive` trên macOS.
