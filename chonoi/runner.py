@@ -21,10 +21,10 @@ from .sim.quan import QuanSim
 from .sim.day import DaySim
 
 
-def build_sim(mode, tuning, scenario, seed, inventory):
+def build_sim(mode, tuning, scenario, seed, inventory, *, day=None):
     streams, ids = Streams(seed), IdAllocator()
     if mode == "gather":
-        return GatherSim(tuning, scenario, streams, ids)
+        return GatherSim(tuning, scenario, streams, ids, day=day)
     return QuanSim(tuning, scenario, streams, ids, inventory=inventory)
 
 
@@ -41,10 +41,10 @@ def _common(sim, tick, sim_tick, phase_tick, tuning, state):
 class Session:
     """Một lượt chơi: dựng sim, bước từng tick, lấy snapshot / dòng end."""
 
-    def __init__(self, mode, tuning, scenario, seed, inventory=None):
+    def __init__(self, mode, tuning, scenario, seed, inventory=None, *, day=None):
         self.mode = mode
         self.tuning = tuning
-        self.sim = build_sim(mode, tuning, scenario, seed, inventory)
+        self.sim = build_sim(mode, tuning, scenario, seed, inventory, day=day)
         self.tick = 0
 
     @property
@@ -81,7 +81,7 @@ class V11Session(Session):
     """v1.1 single-mode session: pause advances wall ticks while simulation clocks stop."""
 
     def __init__(self, mode, tuning, scenario, seed, inventory=None):
-        super().__init__(mode, tuning, scenario, seed, inventory)
+        super().__init__(mode, tuning, scenario, seed, inventory, day=1)
         self.sim_tick = 0
         self.phase_tick = 0
         self.paused = False

@@ -33,10 +33,10 @@ class DaySim:
         if not isinstance(self.day_tuning.get("day_plans"), dict):
             raise BadInput("tuning.day.day_plans phải là object")
         from ..scenario import _validate_upgrades
-        _validate_upgrades({name: spec.get("max_level") for name, spec in catalog.items()
-                            if isinstance(spec, dict)}, self.day_tuning)
-        if len(catalog) != len(self.day_tuning.get("upgrades", {})):
+        if any(not isinstance(spec, dict) for spec in catalog.values()):
             raise BadInput("tuning.day.upgrades entries phải là object")
+        _validate_upgrades({name: spec.get("max_level") for name, spec in catalog.items()},
+                           self.day_tuning)
         self.scenario = scenario
         self.days = days
         self.day_state = scenario.get("day", {})
@@ -150,7 +150,6 @@ class DaySim:
             self.shop_stock = dict(self.phase_sim.stock)
             self.phase = "shop"
             self.phase_tick = 0
-            self.shop_ticks = 0
             rows.append(("shop", "phase_start", {"phase": "shop"}))
         return rows
 
