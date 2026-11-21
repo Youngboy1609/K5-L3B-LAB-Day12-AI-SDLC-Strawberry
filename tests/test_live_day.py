@@ -3,14 +3,17 @@
 Manifest dự án còn v1.0 nên test tự thêm tuning.day tối thiểu (giống tests/test_phase2_day.py), chỉ để kiểm luồng.
 """
 
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 import json
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from chonoi.contract import load_contract
-from chonoi.live import LiveGame, LiveServer
-from helpers import ROOT
+from chonoi.live import LiveGame, LiveServer, main
+from helpers import ROOT, Workdir, write_json
 from test_live import _get, _post
 
 FIXTURE = json.loads((Path(ROOT) / "docs/proof/phase-2/fixtures/p2-day-smoke.json").read_text(encoding="utf-8"))
@@ -60,6 +63,41 @@ class LiveDayTest(unittest.TestCase):
             self.assertEqual(st["days_completed"], 1)
         finally:
             server.stop()
+
+
+    def test_evening_snapshot_lists_only_planned_dishes_supported_by_unreserved_stock(self):
+        tuning = _tuning()
+        dishes = {"goi_bong_sung": 1, "ca_loc_nuong_trui": 1, "lau_ca_linh_dien_dien": 1}
+        tuning["day"]["day_plans"]["1"] = {"dishes": dishes}
+        scenario = {
+            "gather": {"player": {"pos": tuning["gather"]["dock_pos"]},
+                       "hold": ["bong_sung", "bong_sung", "ca_loc"], "random_fish": False},
+            "quan": {"customers": [{"id": "C1", "table_id": tuning["quan"]["tables"][0]["id"],
+                                    "dish_id": "goi_bong_sung"}]},
+        }
+        game = LiveGame("day", tuning, scenario, 42)
+        game.set_input({"interact": True})
+        game._tick_once()
+        state = json.loads(game.state_json())
+        self.assertEqual(state["phase"], "quan")
+        self.assertEqual(state["stock"], {"bong_sung": 2, "ca_loc": 1})
+        self.assertEqual(state["cookable_dishes"], ["ca_loc_nuong_trui"])
+
+    def test_live_quan_inventory_uses_contract_version(self):
+        stock = {"ca_keo": 1, "keo_neo": 2}
+        contract = load_contract()
+        contract["contract_version"] = "1.0"
+        with Workdir() as w:
+            inventory = write_json(w.path("kho.json"), {"items": stock})
+            args = ["--mode", "quan", "--inventory", inventory, "--port", "0"]
+            with patch("chonoi.live.load_contract", return_value=contract), patch("chonoi.live.LiveServer") as server:
+                with redirect_stdout(StringIO()), redirect_stderr(StringIO()), patch("chonoi.live.time.sleep", side_effect=KeyboardInterrupt):
+                    self.assertEqual(main(args), 2)
+                    server.assert_not_called()
+                    contract["contract_version"] = "1.1"
+                    self.assertEqual(main(args), 0)
+                    game = server.call_args.args[0]
+                    self.assertEqual(json.loads(game.state_json())["stock"], stock)
 
 
 if __name__ == "__main__":

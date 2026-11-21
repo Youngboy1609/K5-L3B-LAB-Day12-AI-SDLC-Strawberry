@@ -10,8 +10,8 @@
   /* Lớp màn hình (MENU, giới thiệu, kết quả…) chỉ có ở trình duyệt; mọi chữ ≥ 18px. */
   #screen { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(8, 12, 16, .72); }
   #screen.show { display: flex; }
-  .card { background: #1b252e; border: 1px solid #3a4a57; border-radius: 12px; padding: 28px 36px; min-width: 320px;
-          max-width: calc(100vw - 32px); box-sizing: border-box; text-align: center; font-size: 18px; }
+  .card { background: #1b252e; border: 1px solid #3a4a57; border-radius: 12px; padding: 28px 36px; min-width: min(320px, calc(100vw - 32px));
+          max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; text-align: center; font-size: 18px; }
   .card h1 { font-size: 36px; margin: 0 0 8px; color: #ffe082; }
   .card h2 { font-size: 28px; margin: 0 0 8px; color: #ffe082; }
   .card p { margin: 8px 0; color: #cfd8dc; }
@@ -163,7 +163,7 @@ async function poll() {
 // Trường đọc theo chonoi/sim/day.py + runner.DaySession: day, upgrades {mã: cấp}, active_upgrades, days_completed,
 // time_left_ticks; giá và cấp tối đa ở snap.day_meta.upgrades (live.py gửi kèm từ tuning.day).
 let screen = "MENU";
-let introTimer = null;
+let introTimer = null, introShown = "";
 const INTRO_MS = 4000;
 let pauseReturn = "PLAY";
 const track = { lastTick: -1, lastEventTick: -1, prevPhase: null, served: 0, left: 0, leftClosing: 0, result: null, shift: null, shopMsg: "" };
@@ -319,12 +319,31 @@ function openPause() { pauseReturn = screen; setScreen("PAUSE"); }
 function resume() { setScreen(pauseReturn === "SHOP" ? "SHOP" : "PLAY"); }
 
 const INTRO_HINT = "Tự vào sau 4 giây · nhấn phím bất kỳ để bỏ qua";
+function ingredientRows(counts) {
+  return Object.entries(counts || {}).map(([kind, count]) => [KIND_NAME[kind] || kind, count]);
+}
+function morningIntro() {
+  const day = dayNo(snap), plan = snap?.phase === "gather" ? snap.day_plan : null;
+  const heading = "<h2>" + (day !== null ? "Ngày " + day + " · " : "") + "Buổi sáng</h2>";
+  const dishes = Object.entries(plan?.dishes || {}).map(([id, servings]) => [dishName(id), servings + " suất"]);
+  const agenda = dishes.length ? "<h3>Thực đơn Má Tư</h3>" + statsTable(dishes) +
+                "<h3>Nguyên liệu cần lấy</h3>" + statsTable(ingredientRows(plan.ingredients)) : "";
+  return card(heading + agenda, [["skip", "Bắt đầu"]], INTRO_HINT);
+}
+function eveningIntro() {
+  const stock = ingredientRows(snap?.stock);
+  const dishes = snap?.cookable_dishes || [];
+  const menu = dishes.length ? dishes.map(dishName).join(" · ") : "Chưa đủ nguyên liệu cho món nào.";
+  return card("<h2>Buổi tối</h2><h3>Kho bàn giao</h3>" +
+              (stock.length ? statsTable(stock) : "<p>Kho trống.</p>") +
+              "<h3>Món nấu được</h3><p>" + esc(menu) + "</p>", [["skip", "Mở quán"]], INTRO_HINT);
+}
+
 const SCREENS = {
   MENU: () => card("<h1>Quán Ăn Chợ Nổi</h1><p>Sáng lặn bắt cá, hái rau · tối mở quán đãi khách.</p>",
                    [["play", "Chơi"], ["exit", "Thoát", true]], "Chuột hoặc Tab + Enter để chọn"),
-  // TODO(phase 2): hiện "Ngày N" khi Nghĩa chốt trường số Ngày trong snapshot day.
-  DAY_INTRO: () => card(`<h2>${dayNo(snap) !== null ? "Ngày " + dayNo(snap) + " · " : ""}Buổi sáng</h2><p>Lặn bắt cá, hái rau trên sông. Nhớ lên mặt nước thở!</p>`, [["skip", "Bắt đầu"]], INTRO_HINT),
-  EVENING_INTRO: () => card("<h2>Buổi tối</h2><p>Mở quán: nấu món, bưng ra đúng bàn trước khi khách hết kiên nhẫn.</p>", [["skip", "Mở quán"]], INTRO_HINT),
+  DAY_INTRO: morningIntro,
+  EVENING_INTRO: eveningIntro,
   PAUSE: () => card("<h2>Tạm dừng</h2><p>Thời gian, oxy, kiên nhẫn của khách và giờ Shop đều đứng yên.</p>",
                     [["resume", "Chơi tiếp"], ["restart", "Chơi lại", true], ["menu", "Về menu", true]], "Esc hoặc P để chơi tiếp"),
   SHOP: () => shopHtml(),
@@ -355,6 +374,7 @@ function setScreen(name, data) {
   if (name !== "PLAY") { down.clear(); pushInput(); }   // nhả mọi phím: nhân vật đứng yên khi đang ở màn UI
   const html = SCREENS[name] ? SCREENS[name](data) : "";
   shopShown = name === "SHOP" ? html : "";
+  introShown = name === "DAY_INTRO" || name === "EVENING_INTRO" ? html : "";
   screenEl.innerHTML = html;
   screenEl.classList.toggle("show", !!html);
   bindButtons();
@@ -365,6 +385,15 @@ function setScreen(name, data) {
 }
 // Đọc snapshot + event mới để đếm khách và chuyển màn.
 function onSnapshot(s) {
+  if ((screen === "DAY_INTRO" && s.phase === "gather") || (screen === "EVENING_INTRO" && s.phase === "quan")) {
+    const html = SCREENS[screen]();
+    if (html !== introShown) {
+      introShown = html;
+      screenEl.innerHTML = html;
+      bindButtons();
+      screenEl.querySelector("button")?.focus();
+    }
+  }
   if (num(s.tick) && s.tick < track.lastTick) resetTrack();   // server đã chơi lại (vd. R ở tab khác)
   if (num(s.tick)) track.lastTick = s.tick;
   if (screen === "MENU" || screen === "EXIT") return;
@@ -518,6 +547,12 @@ function drawGather(w, h) {
     const names = {}; hold.forEach((k) => (names[k] = (names[k] || 0) + 1));
     const parts = ["Giỏ " + holdCount + "/" + cap].concat(full ? ["Giỏ đầy"] : [], Object.keys(names).map((k) => (KIND_NAME[k] || k) + "×" + names[k]));
     holdLines = wrapParts(parts, " · ", w - 28, HUD);
+    const progress = Object.entries(snap.day_plan?.ingredients || {})
+      .map(([kind, count]) => (KIND_NAME[kind] || kind) + " " + (names[kind] || 0) + "/" + count);
+    if (progress.length) {
+      progress[0] = "Cần lấy: " + progress[0];
+      holdLines.push(...wrapParts(progress, " · ", w - 28, HUD));
+    }
   }
   const helpTop = h - 12 - (help.length - 1) * LH - 18;                 // mép trên dòng phím đầu tiên
   const holdBase = helpTop - 8 - (holdLines.length - 1) * LH;           // baseline dòng giỏ đầu tiên

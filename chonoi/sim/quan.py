@@ -127,6 +127,12 @@ class QuanSim:
                     available[kind] = available.get(kind, 0) - count
         return available
 
+    def cookable_dishes(self):
+        available = self.available_stock()
+        return [dish_id for dish_id in self.dish_ids
+                if all(available.get(kind, 0) >= count
+                       for kind, count in self.menu[dish_id]["recipe"].items())]
+
     def _validate_fixture(self, kinds):
         """Validate linked fixture data before runner creates its output file."""
         self.stock = validate_items(self.stock, kinds)
@@ -243,11 +249,7 @@ class QuanSim:
         if not free_tables:
             return
         table = free_tables[0]
-        available = self.available_stock()
-        # Lọc theo kế hoạch Ngày trước, rồi mới theo kho khả dụng.
-        choices = [dish_id for dish_id in self.dish_ids
-                   if all(available.get(kind, 0) >= count
-                          for kind, count in self.menu[dish_id]["recipe"].items())]
+        choices = self.cookable_dishes()
         if not choices:
             events.append(("no_dish", {"table_id": table["id"]}))
             return

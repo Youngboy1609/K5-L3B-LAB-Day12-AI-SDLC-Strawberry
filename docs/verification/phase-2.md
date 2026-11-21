@@ -7,7 +7,7 @@ Kết quả chạy với dữ liệu thử chưa phải xác nhận bàn giao.
 |---|---|---|
 | AC-P2-01 | Manifest sáu nguyên liệu/món, cá, Cá Sấu, thứ tự tick | Đã có test cá bơi/sinh, tuổi cá theo fixture, ngưỡng chạm Cá Sấu, recoil, thứ tự ngất và bàn giao kho. Cá và hai nguyên liệu mới được kiểm bằng dữ liệu thử v1.1. Manifest chuẩn chờ P2-01. |
 | AC-P2-02 | `tests/test_phase2_day.py`, fixture smoke 3 tick | Smoke chuyển pha dùng preset thử v1.1. Kế hoạch D1–D5 và bảng giá chuẩn chờ P2-01. |
-| AC-P2-03 | HUD, FPS, chữ, benchmark một ngày | Chưa kiểm. Cần bản chơi day và ghi máy đo; local không thay kết quả máy chấm. |
+| AC-P2-03 | HUD, FPS, chữ, benchmark một ngày | Playwright ở 1280×720 chạy đủ hai ngày với preset thử: kế hoạch sáng, tiến độ thu gom, kho và món nấu được, pause Gather/Shop, mua và áp cấp vào ngày sau. Bản hẹp 390 px không tràn khung giới thiệu. FPS và benchmark bàn giao chờ preset chính thức. |
 | AC-P2-04 | Regression P1, kiểm tất định, test mới | Bản ghép QA trên main 718cf26 đạt 100/100. Test so byte JSONL hai mode độc lập đạt. |
 | AC-P2-05 | Tag remote trỏ commit main đã kiểm | Chưa chốt tag Phase 2. Chờ preset v1.1 và kiểm bản chơi day. |
 

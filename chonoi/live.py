@@ -26,7 +26,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .contract import load_contract
 from .errors import BadInput
 from .inputs import BUTTONS_V11, LiveInputs
-from .inventory import read_inventory
+from .inventory import ingredient_kinds, read_inventory
 from .runner import DaySession, Session
 from .scenario import load_scenario
 
@@ -39,7 +39,9 @@ RECENT_EVENTS = 40
 class LiveGame:
     """Một lượt chơi + luồng nền bước 60 tick/s. Mọi truy cập trạng thái đi qua khóa."""
 
-    def __init__(self, mode, tuning, scenario, seed, inventory=None, inventory_out=None, days=1):
+    def __init__(self, mode, tuning, scenario, seed, inventory=None, inventory_out=None, days=1,
+                 *, contract_version="1.0"):
+        self.contract_version = contract_version
         self._args = (mode, tuning, scenario, seed, inventory)
         self.days = days
         self.mode = mode
@@ -57,7 +59,7 @@ class LiveGame:
             self.inputs = LiveInputs(buttons=BUTTONS_V11, allow_buy=True)
             self.events = self.session._wrap(0, self.session.initial_events)  # day_start, day_plan, phase_start
         else:
-            self.session = Session(*self._args)
+            self.session = Session(*self._args, contract_version=self.contract_version)
             self.inputs = LiveInputs()
             self.events = []
         self._saved = False
@@ -115,6 +117,8 @@ class LiveGame:
                 # Client vẽ theo pha hiện tại; bảng nâng cấp (giá, cấp tối đa) cho màn Shop nằm ở day_meta.
                 snap["meta"] = self.tuning.get(snap.get("phase"), {}) if snap.get("phase") in ("gather", "quan") else {}
                 snap["day_meta"] = self.tuning.get("day", {})
+                if snap["phase"] == "quan":
+                    snap["cookable_dishes"] = self.session.sim.phase_sim.cookable_dishes()
             else:
                 snap["meta"] = self.tuning[self.mode]
             snap["events"] = list(self.events)
@@ -266,10 +270,11 @@ def main(argv=None) -> int:
             raise BadInput("--mode day cần game.contract.json v1.1 (bảng day_plans, upgrades); file hiện là v" + str(version))
         tuning = contract["tuning"]
         scenario = load_scenario(a.scenario, a.mode, tuning, version)
-        inventory = read_inventory(a.inventory) if a.inventory else None
+        inventory = read_inventory(a.inventory, ingredient_kinds(version)) if a.inventory else None
         if inventory is not None and "stock" in scenario:
             raise BadInput("vừa có quan.stock vừa có --inventory")
-        game = LiveGame(a.mode, tuning, scenario, a.seed, inventory, a.inventory_out, days=days)
+        game = LiveGame(a.mode, tuning, scenario, a.seed, inventory, a.inventory_out,
+                        days=days, contract_version=version)
         server = LiveServer(game, a.host, a.port)
     except BadInput as e:
         sys.stderr.write(f"đầu vào sai: {e}\n")
