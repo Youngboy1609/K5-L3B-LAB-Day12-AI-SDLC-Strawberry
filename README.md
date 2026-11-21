@@ -30,7 +30,7 @@ python3 -m chonoi.live --mode quan --inventory kho.json
 | Esc hoặc P | Tạm dừng / chơi tiếp (máy chủ ngừng bước tick thật, kể cả giờ Shop) |
 | 1–9 (ở Shop) | Mua nâng cấp theo thứ tự trong danh sách |
 
-**Chơi cả ngày (Phase 2):** `python3 -m chonoi.live --mode day [--days 1-5]` (mặc định 5 ngày). Lệnh này cần `game.contract.json` v1.1 có bảng `tuning.day` (`day_plans`, `upgrades`, `shop_ticks`); khi file còn v1.0, lệnh báo lỗi và thoát mã 2. Luồng màn hình: Menu → Ngày N · Buổi sáng → Buổi tối → Kết quả buổi tối → Shop → ngày mới, hết ngày cuối thì Tổng kết. Màn giới thiệu, kết quả và pause đều dừng sim.
+**Chơi cả ngày (Phase 2)** dùng lệnh `python3 -m chonoi.live --mode day --days 5`. Manifest v1.1 hiện dùng [số đề xuất của nhóm](docs/clarify.md#preset-v11-đề-xuất-cho-p2-01) cho các ô Ticket-02 chưa cung cấp. Màn giới thiệu, kết quả và pause đều dừng mô phỏng.
 
 **Xem thử màn hình bằng dữ liệu mẫu** (khi server đang chạy, hoặc mở thẳng file `chonoi/web/index.html`): thêm `?demo=shop`, `?demo=result`, `?demo=summary` hoặc `?demo=pause` vào địa chỉ, ví dụ http://127.0.0.1:8000/?demo=shop. Chế độ này không gửi gì lên máy chủ.
 

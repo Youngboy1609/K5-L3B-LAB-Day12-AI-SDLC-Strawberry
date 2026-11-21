@@ -650,7 +650,10 @@ function drawGather(w, h) {
 }
 
 // ----- cảnh QUÁN: nhìn từ trên xuống, x sang phải, z lên (bắc) -----
-const DISH_NAME = { ca_loc_nuong_trui: "Cá lóc nướng trui", goi_bong_sung: "Gỏi bông súng", lau_ca_linh_dien_dien: "Lẩu cá linh bông điên điển" };
+const DISH_NAME = {
+  ca_loc_nuong_trui: "Cá lóc nướng trui", goi_bong_sung: "Gỏi bông súng", lau_ca_linh_dien_dien: "Lẩu cá linh bông điên điển",
+  ca_keo_kho_keo_neo: "Cá kèo kho kèo nèo", ca_keo_chien: "Cá kèo chiên", goi_keo_neo: "Gỏi kèo nèo"
+};
 // Snapshot bỏ các loại có tồn 0, nên HUD tự liệt kê 4 mã nguyên liệu hợp lệ của kho (chỉ để hiển thị).
 const QUAN_KINDS = ["ca_loc", "ca_linh", "bong_dien_dien", "bong_sung"];
 // Theo c.state của snapshot thật: "waiting" | "eating" (order_status là trường riêng). Trạng thái lạ thì hiện nguyên giá trị.
