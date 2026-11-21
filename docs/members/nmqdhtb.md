@@ -15,3 +15,10 @@ Bản nháp do Codex hỗ trợ theo yêu cầu của Nguyễn Minh Quân; Quân
 - Giữ fixture và hướng dẫn chạy tại `docs/proof/phase-2/`; ma trận ở `docs/verification/phase-2.md`.
 - Smoke đầu tiên báo thiếu \`--days\`. Lúc tích hợp, Nghĩa nối smoke với runtime v1.1 bằng dữ liệu thử để kiểm chuyển pha.
 - Chờ nhóm review test và bảng P2-01 trước khi chốt kỳ vọng số liệu.
+
+## Phase 3 — QA kho cá thể và độ tươi
+
+- Chuẩn bị 12 test tích hợp CLI thật trên cây tạm, giữ manifest v1.1 để regression tái chạy độc lập.
+- Regression 112/112 đạt; test v1.2 đang đỏ tại loader, chưa xác minh được gameplay. Xem [ma trận](../verification/phase-3.md).
+- Bài học: ca đầu vào sai cần chạy payload hợp lệ trước, tránh báo đạt khi runtime từ chối mọi dữ liệu của phiên bản mới.
+- Chưa khóa yêu cầu tái cấp còn mơ hồ P3-02; chưa có review chéo hoặc nghiệm thu HUD/remote tag. Đây là bản nháp cần Quân đọc lại.
