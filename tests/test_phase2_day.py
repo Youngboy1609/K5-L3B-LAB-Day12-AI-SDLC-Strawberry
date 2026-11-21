@@ -15,7 +15,7 @@ FIXTURES = Path(ROOT) / "docs/proof/phase-2/fixtures"
 
 def run_day_smoke(*args):
     contract = load_contract()
-    if contract["contract_version"] == "1.1":
+    if contract["contract_version"] != "1.0":
         return run_headless(*args)
     # Dữ liệu chỉ để kiểm luồng khi manifest dự án vẫn là v1.0.
     # Chạy parser và runtime thật. Khi có preset chuẩn, CLI dùng preset trực tiếp.

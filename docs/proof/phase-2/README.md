@@ -1,10 +1,10 @@
 # Chạy lại QA Phase 2
 
-\`\`\`bash
+```bash
 PYTHONPATH=tests:. python3 -m unittest test_phase2_regression test_phase2_day -v
 PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
 python3 tools/check_team.py
-\`\`\`
+```
 
 Smoke kiểm chuyển Gather → Quán → Shop ở tick 1/2/3. Khi manifest còn v1.0,
 test chạy parser và runtime với một preset v1.1 chỉ dùng trong test. Khi
