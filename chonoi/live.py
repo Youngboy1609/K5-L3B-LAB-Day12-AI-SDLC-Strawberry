@@ -5,6 +5,7 @@
 Máy chủ HTTP nhỏ (ThreadingHTTPServer) phục vụ `chonoi/web/index.html` và hai API:
     GET  /state  -> snapshot JSON hiện tại (cùng trường như dòng snapshot của headless) + `meta` + `events`
     POST /input  -> {"move": [a, b], "interact": bool, "catch": bool}   (trạng thái phím đang giữ)
+                    {"pause": bool}  -> tạm dừng / chạy tiếp: khi pause, luồng nền KHÔNG bước tick (trình bày, không vào luật)
     POST /restart -> chơi lại từ đầu (cùng seed, cùng scenario)
 
 Mô phỏng chạy 60 tick/s trong một luồng nền, dùng CÙNG lớp sim như headless (qua `runner.Session`).
@@ -53,6 +54,7 @@ class LiveGame:
         self.events = []
         self._saved = False
         self.error = None
+        self.paused = False  # restart luôn bỏ pause
 
     # --- luồng nền ----------------------------------------------------------------
     def start(self):
@@ -84,7 +86,7 @@ class LiveGame:
 
     def _tick_once(self):
         s = self.session
-        if s.done:
+        if s.done or self.paused:  # pause: sim đứng yên hoàn toàn (oxy, giờ, kiên nhẫn, Shop)
             return
         for row in s.step(self.inputs.advance()):
             self.events.append(row)
@@ -106,6 +108,7 @@ class LiveGame:
             snap["finished"] = self.session.done
             snap["reason"] = self.session.sim.reason if self.session.done else None
             snap["error"] = self.error
+            snap["paused"] = self.paused
             return json.dumps(snap, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
     def set_input(self, body: dict):
@@ -121,7 +124,12 @@ class LiveGame:
                 if not isinstance(body[b], bool):
                     raise ValueError(f"{b} phải là boolean")
                 buttons[b] = body[b]
+        pause = body.get("pause")
+        if pause is not None and not isinstance(pause, bool):
+            raise ValueError("pause phải là boolean")
         with self._lock:
+            if pause is not None:
+                self.paused = pause
             self.inputs.set(move, **buttons)
 
     def restart(self):
