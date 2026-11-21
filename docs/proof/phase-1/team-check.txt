@@ -1,0 +1,8 @@
+Date: 2026-11-21 (Asia/Ho_Chi_Minh)
+Tested commit: b2f749ce0db177a583464e18e6102ab6df138edc
+Branch: nguyen_minh_quan
+Python: 3.15.2
+Command: PYTHONPATH=tests:. /Library/Frameworks/Python.framework/Versions/3.15/bin/python3 tools/check_team.py
+Exit code: 0
+
+OK: 6 thành viên: Youngboy1609, DanggQuangg, TruongThuHa, shoxieje, nmqdhtb, hatrang200715

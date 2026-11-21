@@ -1,0 +1,248 @@
+Date: 2026-11-21 (Asia/Ho_Chi_Minh)
+Tested commit: b2f749ce0db177a583464e18e6102ab6df138edc
+Branch: nguyen_minh_quan
+Python: 3.15.2
+Command: PYTHONPATH=tests:. /Library/Frameworks/Python.framework/Versions/3.15/bin/python3 -m unittest discover -s tests -v
+Exit code: 1
+
+test_state_input_and_clean_stop (test_live.LiveServerTest.test_state_input_and_clean_stop) ... ok
+test_catch_on_last_tick_is_in_exported_inventory (test_phase1_rules.GatherRules.test_catch_on_last_tick_is_in_exported_inventory) ... FAIL
+test_choke_occurs_after_full_interval_including_empty_tick (test_phase1_rules.GatherRules.test_choke_occurs_after_full_interval_including_empty_tick) ... FAIL
+test_faint_discards_hold_and_exports_empty_inventory (test_phase1_rules.GatherRules.test_faint_discards_hold_and_exports_empty_inventory) ... FAIL
+test_full_hold_preserves_ready_node (test_phase1_rules.GatherRules.test_full_hold_preserves_ready_node) ... FAIL
+test_insufficient_capacity_preserves_entire_fish_school (test_phase1_rules.GatherRules.test_insufficient_capacity_preserves_entire_fish_school) ... FAIL
+test_regrown_node_can_be_harvested_in_same_tick (test_phase1_rules.GatherRules.test_regrown_node_can_be_harvested_in_same_tick) ... FAIL
+test_surface_refills_oxygen_and_clamps_at_max (test_phase1_rules.GatherRules.test_surface_refills_oxygen_and_clamps_at_max) ... 
+  test_surface_refills_oxygen_and_clamps_at_max (test_phase1_rules.GatherRules.test_surface_refills_oxygen_and_clamps_at_max) (initial=0) ... FAIL
+  test_surface_refills_oxygen_and_clamps_at_max (test_phase1_rules.GatherRules.test_surface_refills_oxygen_and_clamps_at_max) (initial=1799) ... FAIL
+test_underwater_consumes_one_oxygen_per_tick (test_phase1_rules.GatherRules.test_underwater_consumes_one_oxygen_per_tick) ... FAIL
+test_cooking_consumes_reserved_stock_once_when_button_is_held (test_phase1_rules.QuanRules.test_cooking_consumes_reserved_stock_once_when_button_is_held) ... FAIL
+test_dish_becomes_ready_after_configured_cook_duration (test_phase1_rules.QuanRules.test_dish_becomes_ready_after_configured_cook_duration) ... FAIL
+test_empty_stock_emits_no_dish_only_at_arrival (test_phase1_rules.QuanRules.test_empty_stock_emits_no_dish_only_at_arrival) ... FAIL
+test_first_customer_arrives_on_schedule_without_consuming_stock (test_phase1_rules.QuanRules.test_first_customer_arrives_on_schedule_without_consuming_stock) ... FAIL
+test_random_customers_false_disables_arrivals (test_phase1_rules.QuanRules.test_random_customers_false_disables_arrivals) ... ok
+test_ready_dish_moves_to_empty_hand (test_phase1_rules.QuanRules.test_ready_dish_moves_to_empty_hand) ... FAIL
+test_same_seed_and_cooking_inputs_produce_identical_bytes (test_phase1_rules.QuanRules.test_same_seed_and_cooking_inputs_produce_identical_bytes) ... FAIL
+test_served_customer_finishes_meal_and_pays (test_phase1_rules.QuanRules.test_served_customer_finishes_meal_and_pays) ... FAIL
+test_waiting_customer_leaves_and_releases_reservation_without_consumption (test_phase1_rules.QuanRules.test_waiting_customer_leaves_and_releases_reservation_without_consumption) ... FAIL
+test_bad_frames_raise (test_python_starter_units.Units.test_bad_frames_raise) ... ok
+test_catch_is_a_v10_button_and_attack_is_not (test_python_starter_units.Units.test_catch_is_a_v10_button_and_attack_is_not) ... ok
+test_id_allocator_continues_after_max (test_python_starter_units.Units.test_id_allocator_continues_after_max) ... ok
+test_id_sorting (test_python_starter_units.Units.test_id_sorting) ... ok
+test_input_edges_and_inherit (test_python_starter_units.Units.test_input_edges_and_inherit) ... ok
+test_live_inputs_keep_fast_tap_edge (test_python_starter_units.Units.test_live_inputs_keep_fast_tap_edge) ... ok
+test_session_steps_gather_and_dock (test_python_starter_units.Units.test_session_steps_gather_and_dock) ... ok
+test_con_01_ticks_zero_and_end_line (test_smoke_p1.Contract.test_con_01_ticks_zero_and_end_line) ... ok
+test_con_02_deterministic_bytes (test_smoke_p1.Contract.test_con_02_deterministic_bytes) ... ok
+test_con_03_bad_input_exit_2 (test_smoke_p1.Contract.test_con_03_bad_input_exit_2) ... ok
+test_con_03_old_and_future_modes_rejected (test_smoke_p1.Contract.test_con_03_old_and_future_modes_rejected) ... ok
+test_gather_snapshot_has_gather_fields (test_smoke_p1.Contract.test_gather_snapshot_has_gather_fields) ... ok
+test_scenario_out_of_domain_exit_2 (test_smoke_p1.Contract.test_scenario_out_of_domain_exit_2) ... ok
+test_inv_01_gather_writes_inventory_quan_reads_it (test_smoke_p1.Integration.test_inv_01_gather_writes_inventory_quan_reads_it)
+Ví dụ smoke test trong PRD-0 mục G: cập bến ở tick 0, quán đọc kho đúng nội dung. ... ok
+test_inv_01_not_written_when_tick_limit_first (test_smoke_p1.Integration.test_inv_01_not_written_when_tick_limit_first) ... ok
+test_inv_bad_schema_exit_2 (test_smoke_p1.Integration.test_inv_bad_schema_exit_2) ... ok
+test_inventory_and_scenario_stock_conflict (test_smoke_p1.Integration.test_inventory_and_scenario_stock_conflict) ... ok
+test_inventory_flags_mode_mismatch_exit_2 (test_smoke_p1.Integration.test_inventory_flags_mode_mismatch_exit_2) ... ok
+test_move_01_swim_speed_after_ramp (test_smoke_p1.Movement.test_move_01_swim_speed_after_ramp)
+Bỏ 6 tick tăng tốc rồi đo 60 tick: quãng ≈ swim_speed × 1 s (±0.1). Ngang, xuống, chéo (không nhanh hơn). ... ok
+test_move_02_heading_positive_is_down (test_smoke_p1.Movement.test_move_02_heading_positive_is_down) ... ok
+test_move_03_edge_clamp (test_smoke_p1.Movement.test_move_03_edge_clamp)
+Chặn từng mép của vùng nước, kể cả d không âm (không bay lên khỏi mặt nước) và đáy d = 30. ... ok
+test_move_mep_vel_ve_0 (test_smoke_p1.Movement.test_move_mep_vel_ve_0) ... ok
+test_move_ramp_doi_huong_trong_tran (test_smoke_p1.Movement.test_move_ramp_doi_huong_trong_tran)
+Đảo từ +speed sang -speed: vận tốc chạm mục tiêu sau tối đa ramp_max_ticks tick kể từ lúc đổi input. ... ok
+test_time_ends_gather_and_keeps_hold (test_smoke_p1.Movement.test_time_ends_gather_and_keeps_hold) ... ok
+test_khoi_sai_mode_exit_2 (test_smoke_p1.ScenarioModes.test_khoi_sai_mode_exit_2) ... ok
+test_quan_fixture_khong_hop_le_exit_2 (test_smoke_p1.ScenarioModes.test_quan_fixture_khong_hop_le_exit_2) ... ok
+test_quan_player_vel_hop_le (test_smoke_p1.ScenarioModes.test_quan_player_vel_hop_le) ... ok
+test_good (test_team_check.TeamCheck.test_good) ... ok
+test_template_is_rejected (test_team_check.TeamCheck.test_template_is_rejected) ... ok
+test_too_few_members (test_team_check.TeamCheck.test_too_few_members) ... ok
+test_wrong_size_duplicate_and_outsider (test_team_check.TeamCheck.test_wrong_size_duplicate_and_outsider) ... ok
+
+======================================================================
+FAIL: test_catch_on_last_tick_is_in_exported_inventory (test_phase1_rules.GatherRules.test_catch_on_last_tick_is_in_exported_inventory)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 115, in test_catch_on_last_tick_is_in_exported_inventory
+    self.assertEqual(inventory, {"items": {kind: self.g["fish_yield"][kind]}})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'items': {}} != {'items': {'ca_linh': 3}}
+- {'items': {}}
++ {'items': {'ca_linh': 3}}
+
+======================================================================
+FAIL: test_choke_occurs_after_full_interval_including_empty_tick (test_phase1_rules.GatherRules.test_choke_occurs_after_full_interval_including_empty_tick)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 58, in test_choke_occurs_after_full_interval_including_empty_tick
+    self.assertEqual(by_tick[interval]["player"]["hp"], self.g["hp_max"] - 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 3 != 2
+
+======================================================================
+FAIL: test_faint_discards_hold_and_exports_empty_inventory (test_phase1_rules.GatherRules.test_faint_discards_hold_and_exports_empty_inventory)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 67, in test_faint_discards_hold_and_exports_empty_inventory
+    self.assertEqual(rows[-1]["reason"], "fainted")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'tick_limit' != 'fainted'
+- tick_limit
++ fainted
+
+
+======================================================================
+FAIL: test_full_hold_preserves_ready_node (test_phase1_rules.GatherRules.test_full_hold_preserves_ready_node)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 92, in test_full_hold_preserves_ready_node
+    self.assertEqual(len(events(rows, "hold_full")), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_insufficient_capacity_preserves_entire_fish_school (test_phase1_rules.GatherRules.test_insufficient_capacity_preserves_entire_fish_school)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 106, in test_insufficient_capacity_preserves_entire_fish_school
+    self.assertEqual(len(events(rows, "hold_full")), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_regrown_node_can_be_harvested_in_same_tick (test_phase1_rules.GatherRules.test_regrown_node_can_be_harvested_in_same_tick)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 79, in test_regrown_node_can_be_harvested_in_same_tick
+    self.assertEqual(final["hold"], ["bong_sung"] * self.g["node_yield"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != ['bong_sung']
+
+Second list contains 1 additional elements.
+First extra element 0:
+'bong_sung'
+
+- []
++ ['bong_sung']
+
+======================================================================
+FAIL: test_surface_refills_oxygen_and_clamps_at_max (test_phase1_rules.GatherRules.test_surface_refills_oxygen_and_clamps_at_max) (initial=0)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 50, in test_surface_refills_oxygen_and_clamps_at_max
+    self.assertEqual(snapshots(rows)[-1]["player"]["oxygen_ticks"],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     min(maximum, initial + self.g["oxygen_refill_per_tick"]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 6
+
+======================================================================
+FAIL: test_surface_refills_oxygen_and_clamps_at_max (test_phase1_rules.GatherRules.test_surface_refills_oxygen_and_clamps_at_max) (initial=1799)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 50, in test_surface_refills_oxygen_and_clamps_at_max
+    self.assertEqual(snapshots(rows)[-1]["player"]["oxygen_ticks"],
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     min(maximum, initial + self.g["oxygen_refill_per_tick"]))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1799 != 1800
+
+======================================================================
+FAIL: test_underwater_consumes_one_oxygen_per_tick (test_phase1_rules.GatherRules.test_underwater_consumes_one_oxygen_per_tick)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 43, in test_underwater_consumes_one_oxygen_per_tick
+    self.assertEqual(snapshots(rows)[-1]["player"]["oxygen_ticks"], 7)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 10 != 7
+
+======================================================================
+FAIL: test_cooking_consumes_reserved_stock_once_when_button_is_held (test_phase1_rules.QuanRules.test_cooking_consumes_reserved_stock_once_when_button_is_held)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 178, in test_cooking_consumes_reserved_stock_once_when_button_is_held
+    self.assertEqual(final["stock"], {})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'ca_loc': 1} != {}
+- {'ca_loc': 1}
++ {}
+
+======================================================================
+FAIL: test_dish_becomes_ready_after_configured_cook_duration (test_phase1_rules.QuanRules.test_dish_becomes_ready_after_configured_cook_duration)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 188, in test_dish_becomes_ready_after_configured_cook_duration
+    self.assertEqual(by_tick[ready_tick - 1]["stoves"][0]["state"], "cooking")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'idle' != 'cooking'
+- idle
++ cooking
+
+
+======================================================================
+FAIL: test_empty_stock_emits_no_dish_only_at_arrival (test_phase1_rules.QuanRules.test_empty_stock_emits_no_dish_only_at_arrival)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 165, in test_empty_stock_emits_no_dish_only_at_arrival
+    self.assertEqual([e["tick"] for e in events(rows, "no_dish")], [self.arrival])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != [120]
+
+Second list contains 1 additional elements.
+First extra element 0:
+120
+
+- []
++ [120]
+
+======================================================================
+FAIL: test_first_customer_arrives_on_schedule_without_consuming_stock (test_phase1_rules.QuanRules.test_first_customer_arrives_on_schedule_without_consuming_stock)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 157, in test_first_customer_arrives_on_schedule_without_consuming_stock
+    self.assertEqual(len(customers), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_ready_dish_moves_to_empty_hand (test_phase1_rules.QuanRules.test_ready_dish_moves_to_empty_hand)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 204, in test_ready_dish_moves_to_empty_hand
+    self.assertIsNotNone(final["hand"])
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: unexpectedly None
+
+======================================================================
+FAIL: test_same_seed_and_cooking_inputs_produce_identical_bytes (test_phase1_rules.QuanRules.test_same_seed_and_cooking_inputs_produce_identical_bytes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 268, in test_same_seed_and_cooking_inputs_produce_identical_bytes
+    self.assertEqual(len(events(first, "dish_picked")), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_served_customer_finishes_meal_and_pays (test_phase1_rules.QuanRules.test_served_customer_finishes_meal_and_pays)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 246, in test_served_customer_finishes_meal_and_pays
+    self.assertEqual(len(events(rows, "served")), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_waiting_customer_leaves_and_releases_reservation_without_consumption (test_phase1_rules.QuanRules.test_waiting_customer_leaves_and_releases_reservation_without_consumption)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase1_rules.py", line 216, in test_waiting_customer_leaves_and_releases_reservation_without_consumption
+    self.assertEqual(len(first), 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 49 tests in 4.960s
+
+FAILED (failures=17)
