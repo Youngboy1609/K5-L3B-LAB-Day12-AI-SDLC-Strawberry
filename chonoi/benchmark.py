@@ -6,9 +6,12 @@ to measure an installed Chromium-based browser instead.
 """
 
 import argparse
+import glob
 import json
 import math
+import os
 from pathlib import Path
+import sys
 from statistics import fmean
 
 from .contract import load_contract
@@ -92,6 +95,24 @@ def benchmark(seed, duration, channel=None):
     try:
         with sync_playwright() as playwright:
             options = {"channel": channel} if channel else {}
+            if not channel and not Path(playwright.chromium.executable_path).is_file():
+                browser_cache = os.environ.get("PLAYWRIGHT_BROWSERS_PATH")
+                if not browser_cache or browser_cache == "0":
+                    if sys.platform == "win32":
+                        browser_cache = os.path.join(os.environ.get("LOCALAPPDATA", ""), "ms-playwright")
+                    elif sys.platform == "darwin":
+                        browser_cache = os.path.expanduser("~/Library/Caches/ms-playwright")
+                    else:
+                        browser_cache = os.path.expanduser("~/.cache/ms-playwright")
+                if sys.platform == "win32":
+                    pattern = "chromium_headless_shell-*/chrome-headless-shell-win64/chrome-headless-shell.exe"
+                elif sys.platform == "darwin":
+                    pattern = "chromium_headless_shell-*/chrome-headless-shell-mac/headless_shell"
+                else:
+                    pattern = "chromium_headless_shell-*/chrome-linux/headless_shell"
+                cached = sorted(glob.glob(os.path.join(browser_cache, pattern)))
+                if cached:
+                    options["executable_path"] = cached[-1]
             browser = playwright.chromium.launch(headless=True, timeout=START_TIMEOUT_MS, **options)
             try:
                 page = browser.new_page(viewport=VIEWPORT)
