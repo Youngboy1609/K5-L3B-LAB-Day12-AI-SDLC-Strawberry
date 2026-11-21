@@ -117,6 +117,7 @@ def advance_monsters(sim, events):
     sim.invuln_ticks = rules["invuln_ticks"]
     sim.hp = max(0, sim.hp - rules["damage"])
     lost = [sim.hold.pop() for _ in range(len(sim.hold) // 2)]
-    events.append(("monster_hit", {"monster_id": closest["id"], "hp": sim.hp, "lost": lost}))
+    events.append(("monster_hit", {"monster_id": closest["id"], "hp": sim.hp,
+                                   "lost": sim.hold_payload(lost)}))
     if sim.hp == 0:
         sim._faint(events)
