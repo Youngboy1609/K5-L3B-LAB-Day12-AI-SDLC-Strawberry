@@ -16,6 +16,7 @@ Ngẫu nhiên vẫn đi qua `Streams` (seed); chỉ nhịp chạy theo đồng h
 
 import argparse
 import json
+from fractions import Fraction
 import os
 import sys
 import threading
@@ -34,14 +35,24 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 TICK_S = 1.0 / 60.0
 MAX_BODY = 4096
 RECENT_EVENTS = 40
+FRESH_EXPORT_DIGITS = 5  # v1.2: cùng độ chính xác với item_payload của file kho/JSONL (chỉ để hiển thị)
+
+
+def _json_default(o):
+    """v1.2 giữ fresh là Fraction trong sim; client nhận số JSON 5 chữ số như file kho. Luật không đọc lại số này."""
+    if isinstance(o, Fraction):
+        r = round(float(o), FRESH_EXPORT_DIGITS)
+        return 0.0 if r == 0 else r
+    raise TypeError(f"không xuất JSON được kiểu {type(o).__name__}")
 
 
 class LiveGame:
     """Một lượt chơi + luồng nền bước 60 tick/s. Mọi truy cập trạng thái đi qua khóa."""
 
     def __init__(self, mode, tuning, scenario, seed, inventory=None, inventory_out=None, days=1,
-                 *, contract_version="1.0"):
+                 *, contract_version="1.0", freshness=None):
         self.contract_version = contract_version
+        self.freshness = freshness  # v1.2: {initial, gather_decay_per_s, quan_decay_per_s, spoiled_below} để HUD biết ngưỡng ươn
         self._args = (mode, tuning, scenario, seed, inventory)
         self.days = days
         self.mode = mode
@@ -139,7 +150,10 @@ class LiveGame:
             snap["reason"] = self.session.sim.reason if self.session.done else None
             snap["error"] = self.error
             snap["paused"] = self.paused
-            return json.dumps(snap, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            snap["contract_version"] = self.contract_version  # HUD chọn schema kho: v1.2 mảng cá thể, cũ là object đếm
+            if self.freshness is not None:
+                snap["freshness"] = self.freshness
+            return json.dumps(snap, ensure_ascii=False, separators=(",", ":"), default=_json_default).encode("utf-8")
 
     def set_input(self, body: dict):
         move = body.get("move")
@@ -256,7 +270,7 @@ class LiveServer:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="chonoi.live", description="Chơi trực tiếp trên trình duyệt (starter).")
-    p.add_argument("--mode", required=True, choices=["gather", "quan", "day"])  # day cần contract v1.1
+    p.add_argument("--mode", required=True, choices=["gather", "quan", "day"])  # day cần contract v1.1+
     p.add_argument("--days", type=int, help="chỉ với day: số ngày 1–5 (mặc định 5)")
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--port", type=int, default=8000, help="0 = cổng ngẫu nhiên")
@@ -279,15 +293,21 @@ def main(argv=None) -> int:
             raise BadInput("day không nhận cờ file kho --inventory/--inventory-out")
         contract = load_contract()
         version = contract.get("contract_version", "1.0")
-        if a.mode == "day" and version != "1.1":
-            raise BadInput("--mode day cần game.contract.json v1.1 (bảng day_plans, upgrades); file hiện là v" + str(version))
+        if a.mode == "day" and version not in ("1.1", "1.2"):
+            raise BadInput("--mode day cần game.contract.json v1.1 trở lên (bảng day_plans, upgrades); file hiện là v" + str(version))
         tuning = contract["tuning"]
         scenario = load_scenario(a.scenario, a.mode, tuning, version)
-        inventory = read_inventory(a.inventory, ingredient_kinds(version)) if a.inventory else None
+        inventory = None
+        if a.inventory:
+            if version == "1.2":  # kho mảng cá thể; file đếm cũ bị từ chối (mã 2)
+                inventory = read_inventory(a.inventory, ingredient_kinds(version), contract_version=version)
+            else:
+                inventory = read_inventory(a.inventory, ingredient_kinds(version))
         if inventory is not None and "stock" in scenario:
             raise BadInput("vừa có quan.stock vừa có --inventory")
         game = LiveGame(a.mode, tuning, scenario, a.seed, inventory, a.inventory_out,
-                        days=days, contract_version=version)
+                        days=days, contract_version=version,
+                        freshness=contract.get("freshness", tuning.get("freshness")))
         server = LiveServer(game, a.host, a.port)
     except BadInput as e:
         sys.stderr.write(f"đầu vào sai: {e}\n")

@@ -40,7 +40,8 @@
  * Phím: WASD / mũi tên = di chuyển · E = interact · Space = catch · R = chơi lại · L = bật/tắt nhật ký event.
  * Esc / P = tạm dừng (gửi {"pause": true} — live.py ngừng bước tick thật, kể cả lúc đang ở Shop).
  * Shop (mode day): phím 1–9 gửi {"buy": "<mã>"} theo thứ tự danh sách, nút "Xong" gửi {"shop_done": true}.
- * Xem thử màn hình bằng dữ liệu mẫu: ?demo=shop | result | summary | pause (không gửi gì lên máy chủ).
+ * Xem thử màn hình bằng dữ liệu mẫu: ?demo=shop | result | summary | pause | hold | kho (không gửi gì lên máy chủ).
+ * Kho v1.2 (độ tươi): ?demo=hold = HUD buổi sáng với giỏ cá thể, ?demo=kho = HUD buổi tối với kho cá thể, hàng giữ và hàng ươn.
  * Các màn MENU / giới thiệu / kết quả chỉ ở lớp trình bày (trình duyệt); headless chỉ có pha gameplay.
  */
 const cv = document.getElementById("c");
@@ -298,7 +299,9 @@ function shopHtml() {
     `<p>Tiền: <b>${money !== null ? money + "k" : "?"}</b>${tl !== null ? " · còn " + esc(fmtTime(tl)) : ""}</p>`;
   const table = items.length ? `<table class="stats shop">${rows}</table>` : "<p>(Chưa có danh sách nâng cấp từ máy chủ)</p>";
   const msg = track.shopMsg ? `<p class="msg">${esc(track.shopMsg)}</p>` : "";
-  return card(head + table + msg + "<p>Nâng cấp mua hôm nay áp dụng từ ngày mai.</p>",
+  const left = ingredientRows(s.stock);
+  const leftover = left.length ? "<h3>Kho dư (giữ nguyên độ tươi, bỏ khi đóng Shop)</h3>" + statsTable(left) : "";
+  return card(head + table + msg + leftover + "<p>Nâng cấp mua hôm nay áp dụng từ ngày mai.</p>",
               [["shop_done", "Xong, sang ngày mới"]], "Phím 1–9 mua theo thứ tự · Esc/P tạm dừng");
 }
 function buy(id) {
@@ -327,8 +330,21 @@ function openPause() { pauseReturn = screen; setScreen("PAUSE"); }
 function resume() { setScreen(pauseReturn === "SHOP" ? "SHOP" : "PLAY"); }
 
 const INTRO_HINT = "Tự vào sau 4 giây · nhấn phím bất kỳ để bỏ qua";
-function ingredientRows(counts) {
-  return Object.entries(counts || {}).map(([kind, count]) => [KIND_NAME[kind] || kind, count]);
+// Bảng nguyên liệu: object đếm (kế hoạch ngày, kho cũ) hoặc mảng cá thể v1.2 (thêm cột độ tươi / số ươn).
+function ingredientRows(coll) {
+  if (!Array.isArray(coll)) return Object.entries(coll || {}).map(([kind, count]) => [KIND_NAME[kind] || kind, count]);
+  const items = toItems(coll), sum = kindSummary(items);
+  if (!hasFresh(items)) return Object.keys(sum).sort().map((k) => [KIND_NAME[k] || k, sum[k].total]);
+  return Object.keys(sum).sort().map((k) => {
+    const o = sum[k], notes = [];
+    if (o.minFresh !== null) notes.push("tươi thấp nhất " + fmtFresh(o.minFresh));
+    if (o.spoiled) notes.push(o.spoiled + " ươn");
+    return [KIND_NAME[k] || k, o.total + (notes.length ? " (" + notes.join(", ") + ")" : "")];
+  });
+}
+function stockTotal(coll) {
+  const items = toItems(coll);
+  return { total: items.length, spoiled: items.filter(isSpoiled).length };
 }
 function morningIntro() {
   const day = dayNo(snap), plan = snap?.phase === "gather" ? snap.day_plan : null;
@@ -342,8 +358,10 @@ function eveningIntro() {
   const stock = ingredientRows(snap?.stock);
   const dishes = snap?.cookable_dishes || [];
   const menu = dishes.length ? dishes.map(dishName).join(" · ") : "Chưa đủ nguyên liệu cho món nào.";
+  const tot = stockTotal(snap?.stock);
+  const totLine = tot.total ? `<p>Tổng bàn giao: <b>${tot.total}</b> nguyên liệu${tot.spoiled ? ` · <b>${tot.spoiled}</b> đã ươn (không nấu được)` : ""}</p>` : "";
   return card("<h2>Buổi tối</h2><h3>Kho bàn giao</h3>" +
-              (stock.length ? statsTable(stock) : "<p>Kho trống.</p>") +
+              (stock.length ? totLine + statsTable(stock) : "<p>Kho trống.</p>") +
               "<h3>Món nấu được</h3><p>" + esc(menu) + "</p>", [["skip", "Mở quán"]], INTRO_HINT);
 }
 
@@ -441,6 +459,40 @@ const HUD = 18, LH = 24;   // cỡ chữ HUD tối thiểu (AC-P2-03) và khoả
 const KIND_COLOR = { ca_loc: "#7c9a52", ca_linh: "#d6e6f2", ca_keo: "#d9a066", bong_dien_dien: "#f2c230", bong_sung: "#e8799c", keo_neo: "#8fcf6b" };
 const KIND_NAME = { ca_loc: "cá lóc", ca_linh: "cá linh", ca_keo: "cá kèo", bong_dien_dien: "điên điển", bong_sung: "bông súng", keo_neo: "kèo nèo" };
 const kc = (k) => KIND_COLOR[k] || "#bbbbbb";
+
+// ---------- Kho v1.2: mỗi nguyên liệu là một cá thể {id, kind, fresh} ----------
+// Snapshot cũ (v1.0/v1.1): hold = mảng kind, stock = object đếm, reserved = object đếm. v1.2: hold/stock = mảng cá thể,
+// reserved = mảng ID. Các hàm dưới đây đưa cả hai dạng về cùng một mảng cá thể để HUD vẽ một kiểu.
+// Ngưỡng ươn đọc từ snapshot.freshness.spoiled_below (live.py gửi kèm), mặc định 30: fresh < 30 là ươn, đúng 30 vẫn tươi.
+// Số fresh chỉ để HIỂN THỊ (làm tròn xuống 1 chữ số); so ngưỡng luôn dùng số gốc của snapshot.
+function spoiledBelow() { const f = snap && snap.freshness; return f && num(f.spoiled_below) ? f.spoiled_below : 30; }
+const isItem = (x) => !!x && typeof x === "object" && typeof x.kind === "string";
+const isSpoiled = (it) => num(it.fresh) && it.fresh < spoiledBelow();
+function toItems(coll) {
+  if (Array.isArray(coll)) return coll.map((x) => (isItem(x) ? x : { id: null, kind: String(x), fresh: null }));
+  const out = [];
+  if (coll && typeof coll === "object")
+    Object.keys(coll).sort().forEach((k) => { for (let i = 0; i < (Number(coll[k]) || 0); i++) out.push({ id: null, kind: k, fresh: null }); });
+  return out;
+}
+const hasFresh = (items) => items.some((it) => num(it.fresh));
+function fmtFresh(f) { return String(Math.floor(f * 10) / 10); }   // 29.99 → "29.9", 99.99167 → "99.9"
+function itemLabel(it) {
+  const name = KIND_NAME[it.kind] || it.kind;
+  if (!num(it.fresh)) return name;
+  return name + " " + (isSpoiled(it) ? "ƯƠN" : fmtFresh(it.fresh));
+}
+// Đếm theo loại: tổng vật lý, số ươn, độ tươi thấp nhất còn tươi.
+function kindSummary(items) {
+  const out = {};
+  items.forEach((it) => {
+    const o = out[it.kind] || (out[it.kind] = { total: 0, spoiled: 0, minFresh: null });
+    o.total++;
+    if (isSpoiled(it)) o.spoiled++;
+    else if (num(it.fresh)) o.minFresh = o.minFresh === null ? it.fresh : Math.min(o.minFresh, it.fresh);
+  });
+  return out;
+}
 
 function fit() {
   const dpr = window.devicePixelRatio || 1;
@@ -562,14 +614,18 @@ function drawGather(w, h) {
   const statusLines = wrapParts(notices, " · ", w - 28, HUD, true);
   // Đáy màn hình (tính từ dưới lên): dòng phím (tự xuống dòng) → dòng giỏ (tự xuống dòng) → hàng ô giỏ.
   const help = helpLines(w, "WASD/mũi tên bơi · E hái / cập bến · Space bắt cá · R chơi lại · L nhật ký");
-  const hold = Array.isArray(snap.hold) ? snap.hold : [];
+  const holdItems = toItems(snap.hold), v12Hold = hasFresh(holdItems);
   const holdCount = num(snap.hold_count) ? snap.hold_count : (Array.isArray(snap.hold) ? snap.hold.length : null);
   const hasHold = holdCount !== null && num(snap.hold_capacity) && snap.hold_capacity > 0;
   const cap = hasHold ? snap.hold_capacity : 0, full = hasHold && holdCount >= cap;
   let holdLines = [];
   if (hasHold) {
-    const names = {}; hold.forEach((k) => (names[k] = (names[k] || 0) + 1));
-    const parts = ["Giỏ " + holdCount + "/" + cap].concat(full ? ["Giỏ đầy"] : [], Object.keys(names).map((k) => (KIND_NAME[k] || k) + "×" + names[k]));
+    // "Cần lấy" chỉ đếm hàng còn tươi; v1.2 liệt kê từng cá thể theo thứ tự lấy (cuối giỏ rơi trước khi bị đánh).
+    const names = {}; holdItems.forEach((it) => { if (!isSpoiled(it)) names[it.kind] = (names[it.kind] || 0) + 1; });
+    const spoiledN = holdItems.filter(isSpoiled).length;
+    const counts = {}; holdItems.forEach((it) => (counts[it.kind] = (counts[it.kind] || 0) + 1));
+    const listing = v12Hold ? holdItems.map(itemLabel) : Object.keys(counts).map((k) => (KIND_NAME[k] || k) + "×" + counts[k]);
+    const parts = ["Giỏ " + holdCount + "/" + cap].concat(full ? ["Giỏ đầy"] : [], spoiledN ? [spoiledN + " món ươn"] : [], listing);
     holdLines = wrapParts(parts, " · ", w - 28, HUD);
     const progress = Object.entries(snap.day_plan?.ingredients || {})
       .map(([kind, count]) => (KIND_NAME[kind] || kind) + " " + (names[kind] || 0) + "/" + count);
@@ -675,7 +731,22 @@ function drawGather(w, h) {
     for (let i = 0; i < cap; i++) {
       const x0 = 14 + i * (sz + 4);
       ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fillRect(x0, slotY, sz, sz);
-      if (i < holdCount) { ctx.fillStyle = hold[i] ? kc(hold[i]) : "#bbbbbb"; ctx.fillRect(x0 + 3, slotY + 3, sz - 6, sz - 6); }
+      if (i < holdCount) {
+        const it = holdItems[i];
+        const bad = it && isSpoiled(it);
+        ctx.globalAlpha = bad ? 0.45 : 1;
+        ctx.fillStyle = it ? kc(it.kind) : "#bbbbbb"; ctx.fillRect(x0 + 3, slotY + 3, sz - 6, sz - 6);
+        ctx.globalAlpha = 1;
+        if (it && num(it.fresh)) {   // vạch độ tươi dưới đáy ô: xanh khi tươi, đỏ khi ươn
+          ctx.fillStyle = bad ? "#ef5350" : "#66bb6a";
+          ctx.fillRect(x0 + 3, slotY + sz - 6, Math.max(2, (sz - 6) * Math.min(1, it.fresh / 100)), 3);
+        }
+        if (bad) {   // dấu X cho hàng ươn (không chỉ dựa vào màu)
+          ctx.strokeStyle = "#ef5350"; ctx.lineWidth = 2; ctx.beginPath();
+          ctx.moveTo(x0 + 4, slotY + 4); ctx.lineTo(x0 + sz - 4, slotY + sz - 4);
+          ctx.moveTo(x0 + sz - 4, slotY + 4); ctx.lineTo(x0 + 4, slotY + sz - 4); ctx.stroke();
+        }
+      }
       if (full) { ctx.strokeStyle = "#ef5350"; ctx.lineWidth = 2; ctx.strokeRect(x0 + 1, slotY + 1, sz - 2, sz - 2); }
     }
     holdLines.forEach((ln, i) => text(ln, 14, holdBase + i * LH, { color: full ? "#ff6b6b" : "#cfd8dc" }));
@@ -701,7 +772,31 @@ function dishName(d) {
   return DISH_NAME[id] || String(id);
 }
 // Kho khả dụng = stock[loại] − tổng customer.reserved[loại] của các đơn order_status "reserved".
+// v1.2: stock là mảng cá thể, reserved là mảng ID; còn cấp được = cá thể chưa ươn và chưa bị đơn nào giữ.
+function quanStockLineV12() {
+  const items = toItems(snap.stock), heldIds = new Set();
+  (Array.isArray(snap.customers) ? snap.customers : []).forEach((c) => {
+    if (c && c.order_status === "reserved" && Array.isArray(c.reserved)) c.reserved.forEach((id) => heldIds.add(id));
+  });
+  const kinds = QUAN_KINDS.slice();
+  items.forEach((it) => { if (!kinds.includes(it.kind)) kinds.push(it.kind); });
+  const parts = kinds.map((k) => {
+    const mine = items.filter((it) => it.kind === k);
+    const avail = mine.filter((it) => !isSpoiled(it) && !heldIds.has(it.id));
+    const spoiled = mine.filter(isSpoiled).length, held = mine.filter((it) => heldIds.has(it.id)).length;
+    const extra = [];
+    if (mine.length !== avail.length) extra.push("tồn " + mine.length);
+    if (held) extra.push(held + " đang giữ");
+    if (spoiled) extra.push(spoiled + " ươn");
+    const best = avail.length ? Math.max(...avail.map((it) => it.fresh)) : null;
+    return (KIND_NAME[k] || k) + " ×" + avail.length + (best !== null ? " (tươi " + fmtFresh(best) + ")" : "") +
+           (extra.length ? " [" + extra.join(", ") + "]" : "");
+  });
+  parts[0] = "Còn cấp được: " + parts[0];
+  return parts;
+}
 function quanStockLine() {
+  if (Array.isArray(snap.stock)) return quanStockLineV12();
   if (!snap.stock || typeof snap.stock !== "object") return null;
   const stock = snap.stock, held = {};
   (Array.isArray(snap.customers) ? snap.customers : []).forEach((c) => {
@@ -864,7 +959,7 @@ function frame() {
   const [w, h] = fit();
   ctx.fillStyle = "#10161c"; ctx.fillRect(0, 0, w, h);
   if (screen !== "EXIT") {
-    if (snap && snap.demo) {
+    if (snap && snap.demo && !snap.draw) {
       text("Xem thử màn hình bằng dữ liệu mẫu (?demo=" + DEMO + ")", w / 2, 36, { align: "center", color: "#9fb3c0" });
     } else if (snap) {
       const view = viewOf(snap);
@@ -881,6 +976,7 @@ function frame() {
 const DEMO_SNAPS = {
   shop: { demo: true, mode: "day", phase: "shop", day: 2, money: 180, earned: 260, reputation: 3.4, time_left_ticks: 1500,
           upgrades: { binh_oxy: 1, ao_lan: 0, gio_lon: 2 }, active_upgrades: { binh_oxy: 1, ao_lan: 0, gio_lon: 2 },
+          stock: [{ id: "I7", kind: "ca_linh", fresh: 71.25 }, { id: "I9", kind: "keo_neo", fresh: 28 }],
           day_meta: { upgrades: {
             binh_oxy: { max_level: 3, levels: { 1: { price: 40 }, 2: { price: 60 }, 3: { price: 90 } } },
             ao_lan: { max_level: 2, levels: { 1: { price: 50 }, 2: { price: 120 } } },
@@ -889,11 +985,25 @@ const DEMO_SNAPS = {
             shift: { served: 7, paid: 7, left: 2, left_closing: 1, tips: 18, shift_earned: 142 } },
   summary: { demo: true, mode: "day", phase: "shop", finished: true, reason: "days_complete", days_completed: 5, money: 410, earned: 1260, reputation: 4.2 },
   pause: { demo: true, mode: "day", phase: "gather", day: 1 },
+  // Kho v1.2: giỏ có cá thể fresh 30 (vẫn tươi) và 29.99 (ươn); kho quán có cá thể đang giữ và cá thể ươn.
+  hold: { demo: true, draw: true, mode: "gather", phase: "gather", contract_version: "1.2", freshness: { spoiled_below: 30 },
+          time_left_ticks: 7200, player: { pos: [30, 4], at_surface: false, oxygen_ticks: 1500, oxygen_max_ticks: 1800, hp: 3, hp_max: 3 },
+          hold_capacity: 12, hold_count: 5,
+          hold: [{ id: "I1", kind: "ca_linh", fresh: 100 }, { id: "I2", kind: "ca_linh", fresh: 30 }, { id: "I3", kind: "bong_sung", fresh: 29.99 },
+                 { id: "I4", kind: "ca_loc", fresh: 64.5 }, { id: "I5", kind: "keo_neo", fresh: 99.99167 }],
+          day_plan: { ingredients: { ca_linh: 3, bong_sung: 2, ca_loc: 1 } } },
+  kho: { demo: true, draw: true, mode: "quan", phase: "quan", contract_version: "1.2", freshness: { spoiled_below: 30 },
+         time_left_ticks: 9000, money: 40, reputation: 3, score: 340, player: { pos: [8, 5] }, hand: null,
+         stock: [{ id: "I1", kind: "ca_linh", fresh: 92.5 }, { id: "I2", kind: "ca_linh", fresh: 88 }, { id: "I3", kind: "ca_linh", fresh: 29.99 },
+                 { id: "I4", kind: "bong_dien_dien", fresh: 75.25 }, { id: "I5", kind: "ca_loc", fresh: 30 }, { id: "I6", kind: "bong_sung", fresh: 12 }],
+         stoves: [{ id: "B1", pos: [2, 8], state: "idle" }], tables: [{ id: "T1", pos: [12, 5], customer_id: "C1" }],
+         customers: [{ id: "C1", table_id: "T1", state: "waiting", order_status: "reserved", dish_id: "lau_ca_linh_dien_dien",
+                       reserved: ["I1", "I4"], patience_ticks_left: 2000 }] },
 };
 if (DEMO && DEMO_SNAPS[DEMO]) {
   stopped = true;   // không poll máy chủ
   snap = DEMO_SNAPS[DEMO];
-  const first = { shop: "SHOP", result: "DAY_RESULT", summary: "SUMMARY", pause: "PAUSE" }[DEMO];
+  const first = { shop: "SHOP", result: "DAY_RESULT", summary: "SUMMARY", pause: "PAUSE", hold: "PLAY", kho: "PLAY" }[DEMO];
   if (first === "PAUSE") pauseReturn = "PLAY";
   setScreen(first, snap.shift);
   if (first === "DAY_RESULT") ACTIONS.continue = () => { snap = DEMO_SNAPS.shop; setScreen("SHOP"); };

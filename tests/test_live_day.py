@@ -132,5 +132,29 @@ class LiveDayTest(unittest.TestCase):
         self.assertEqual(json.loads(game.state_json())["served_dishes"], {})
 
 
+class LiveFreshnessSnapshotTest(unittest.TestCase):
+    """Phase 3 (HUD): snapshot live báo schema kho và ngưỡng ươn; fresh Fraction xuất số 5 chữ số như file kho."""
+
+    def test_snapshot_reports_schema_and_threshold(self):
+        tuning = load_contract()["tuning"]
+        freshness = {"initial": 100, "gather_decay_per_s": 0.5, "quan_decay_per_s": 0.25, "spoiled_below": 30}
+        game = LiveGame("gather", tuning, {}, 1, contract_version="1.1", freshness=freshness)
+        snap = json.loads(game.state_json())
+        self.assertEqual(snap["contract_version"], "1.1")
+        self.assertEqual(snap["freshness"]["spoiled_below"], 30)
+        self.assertNotIn("freshness", json.loads(LiveGame("gather", tuning, {}, 1).state_json()))
+
+    def test_fraction_fresh_is_exported_for_display_only(self):
+        from fractions import Fraction
+        from chonoi.live import _json_default
+        out = json.loads(json.dumps({"hold": [{"id": "I1", "kind": "ca_linh", "fresh": Fraction(11999, 120)},
+                                              {"id": "I2", "kind": "ca_linh", "fresh": Fraction(6001, 200)},
+                                              {"id": "I3", "kind": "ca_linh", "fresh": Fraction(0)}]},
+                                    default=_json_default))
+        self.assertEqual([i["fresh"] for i in out["hold"]], [99.99167, 30.005, 0.0])
+        with self.assertRaises(TypeError):
+            json.dumps({"x": object()}, default=_json_default)
+
+
 if __name__ == "__main__":
     unittest.main()
