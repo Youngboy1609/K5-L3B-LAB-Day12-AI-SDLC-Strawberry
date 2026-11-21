@@ -5,7 +5,7 @@ Kết quả chạy với dữ liệu thử chưa phải xác nhận bàn giao.
 
 | AC | Kiểm chứng | Kết quả hiện tại |
 |---|---|---|
-| AC-P2-01 | Manifest sáu nguyên liệu/món, cá, Cá Sấu, thứ tự tick | Đã có test ngưỡng chạm, recoil, thứ tự ngất và bàn giao kho rỗng. Manifest còn v1.0, chờ P2-01 và phần cá. |
+| AC-P2-01 | Manifest sáu nguyên liệu/món, cá, Cá Sấu, thứ tự tick | Đã có test cá bơi/sinh, tuổi cá theo fixture, ngưỡng chạm Cá Sấu, recoil, thứ tự ngất và bàn giao kho. Cá và hai nguyên liệu mới được kiểm bằng dữ liệu thử v1.1. Manifest chuẩn chờ P2-01. |
 | AC-P2-02 | `tests/test_phase2_day.py`, fixture smoke 3 tick | Smoke chuyển pha dùng preset thử v1.1. Kế hoạch D1–D5 và bảng giá chuẩn chờ P2-01. |
 | AC-P2-03 | HUD, FPS, chữ, benchmark một ngày | Chưa kiểm. Cần bản chơi day và ghi máy đo; local không thay kết quả máy chấm. |
 | AC-P2-04 | Regression P1, kiểm tất định, test mới | Bản ghép QA trên main 718cf26 đạt 100/100. Test so byte JSONL hai mode độc lập đạt. |

@@ -8,13 +8,12 @@ phải có đúng một món, khách eating thiếu giá/tip...) — xem PRD-0 m
 import json
 
 from .errors import BadInput
-from .inventory import KINDS_P1, validate_items
+from .inventory import NODE_KINDS_P1, NODE_KINDS_P2, ingredient_kinds, validate_items
 
 GATHER_KEYS = {"player", "hold", "nodes", "fish", "random_fish", "time_left_ticks"}
 GATHER_KEYS_V11 = GATHER_KEYS | {"monsters"}
 GATHER_PLAYER_KEYS = {"pos", "vel", "heading_deg", "hp", "oxygen_ticks", "zero_oxy_ticks",
                       "invuln_ticks", "catch_cd_ticks"}
-NODE_KINDS = ("bong_dien_dien", "bong_sung")
 FISH_KINDS = ("ca_linh", "ca_loc")
 MONSTER_KEYS = {"id", "kind", "pos", "waypoints", "target_idx", "state", "state_ticks_left", "recoil_dir"}
 QUAN_PLAYER_KEYS = {"pos", "vel"}
@@ -101,7 +100,7 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
                 if child_mode == "gather":
                     _validate_gather(child, child_tuning, contract_version)
                 else:
-                    _validate_quan(child, child_tuning)
+                    _validate_quan(child, child_tuning, contract_version)
         return data
 
     if not isinstance(data, dict) or not set(data) <= {"gather", "quan"}:
@@ -123,7 +122,7 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
     if mode == "gather":
         _validate_gather(block, tuning, contract_version)
     else:
-        _validate_quan(block, tuning)
+        _validate_quan(block, tuning, contract_version)
     return block
 
 
@@ -207,6 +206,11 @@ def _pos(name, pos, bounds, axes=("x", "d")):
 def _validate_gather(b, tuning, contract_version="1.0"):
     g = tuning["gather"]
     bounds = g["bounds"]
+    node_kinds = NODE_KINDS_P2 if contract_version == "1.1" else NODE_KINDS_P1
+    fish_kinds = FISH_KINDS
+    if contract_version == "1.1" and "ca_keo" in g["fish_yield"]:
+        fish_kinds = (*fish_kinds, "ca_keo")
+    kinds = ingredient_kinds(contract_version)
     for arr in ("nodes", "fish"):
         if arr in b:
             _check_ids(arr, b[arr])
@@ -220,7 +224,7 @@ def _validate_gather(b, tuning, contract_version="1.0"):
         raise BadInput("random_fish phải là boolean")
     if "hold" in b:
         h = b["hold"]
-        if not isinstance(h, list) or any(k not in KINDS_P1 for k in h):
+        if not isinstance(h, list) or any(k not in kinds for k in h):
             raise BadInput("hold phải là mảng id nguyên liệu hợp lệ")
         if len(h) > g["hold_capacity"]:
             raise BadInput("hold vượt sức chứa")
@@ -252,8 +256,8 @@ def _validate_gather(b, tuning, contract_version="1.0"):
         if p["zero_oxy_ticks"] > 0 and not (oxy == 0 and pos[1] > g["surface_depth"]):
             raise BadInput("player.zero_oxy_ticks > 0 chỉ khi oxy = 0 và đang dưới nước")
     for n in b.get("nodes", []):
-        if n.get("kind") not in NODE_KINDS:
-            raise BadInput(f"nodes.{n['id']}: kind phải là một trong {NODE_KINDS}")
+        if n.get("kind") not in node_kinds:
+            raise BadInput(f"nodes.{n['id']}: kind phải là một trong {node_kinds}")
         _pos(f"nodes.{n['id']}.pos", n.get("pos"), bounds)
         if n["pos"][1] != 0:
             raise BadInput(f"nodes.{n['id']}: nút hái nằm ở mặt nước (d = 0)")
@@ -266,8 +270,8 @@ def _validate_gather(b, tuning, contract_version="1.0"):
         extra = set(f) - allowed_fish
         if extra:
             raise BadInput(f"fish.{f['id']}: trường lạ {sorted(extra)}")
-        if f.get("kind") not in FISH_KINDS:
-            raise BadInput(f"fish.{f['id']}: kind phải là một trong {FISH_KINDS}")
+        if f.get("kind") not in fish_kinds:
+            raise BadInput(f"fish.{f['id']}: kind phải là một trong {fish_kinds}")
         _pos(f"fish.{f['id']}.pos", f.get("pos"), bounds)
         if f["pos"][1] <= g["surface_depth"]:
             raise BadInput(f"fish.{f['id']}: đàn cá phải ở dưới nước")
@@ -277,12 +281,13 @@ def _validate_gather(b, tuning, contract_version="1.0"):
             _nonneg_int(f"fish.{f['id']}.age_ticks", f["age_ticks"])
 
 
-def _validate_quan(b, tuning):
+def _validate_quan(b, tuning, contract_version):
+    kinds = ingredient_kinds(contract_version)
     for arr in ("stoves", "tables", "customers"):
         if arr in b:
             _check_ids(arr, b[arr])
     if "stock" in b:
-        validate_items(b["stock"])
+        validate_items(b["stock"], kinds)
     if "reputation" in b:
         value = b["reputation"]
         q = tuning["quan"]
@@ -336,7 +341,7 @@ def _validate_quan(b, tuning):
             if key in c:
                 _nonneg_int(f"customers.{c['id']}.{key}", c[key])
         if "reserved" in c:
-            validate_items(c["reserved"])
+            validate_items(c["reserved"], kinds)
         if "dish_id" in c and (not isinstance(c["dish_id"], str) or c["dish_id"] not in tuning["menu"]):
             raise BadInput(f"customers.{c['id']}.dish_id không hợp lệ")
         if c.get("state", "waiting") == "waiting" and c.get("eat_ticks_left", 0) != 0:
