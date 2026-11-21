@@ -1,4 +1,4 @@
-# Ma trận kiểm chứng Phase 2 — QA chuẩn bị
+# Ma trận kiểm chứng Phase 2
 
 Nguyễn Minh Quân chuẩn bị QA, Hồ Trọng Nghĩa kiểm khi tích hợp (2026-11-21).
 Kết quả dưới đây dùng preset v1.1 đề xuất, chờ đối chiếu bảng Ticket-02 chính thức.
@@ -7,9 +7,9 @@ Kết quả dưới đây dùng preset v1.1 đề xuất, chờ đối chiếu b
 |---|---|---|
 | AC-P2-01 | Manifest sáu nguyên liệu/món, cá, Cá Sấu, thứ tự tick | Manifest đề xuất có sáu nguyên liệu, sáu món, hai bếp, bốn bàn. Suite kiểm cá bơi/sinh, tuổi cá, Cá Sấu, recoil và ngất bàn giao kho rỗng. Đối chiếu số liệu chính thức theo P2-01. |
 | AC-P2-02 | `tests/test_phase2_day.py`, fixture smoke 3 tick | Smoke ba tick và lượt chạy đủ D1–D5 đều dùng manifest của repo. Mua oxy và Máu đủ đúng giá, cấp áp vào D2, Cá Sấu M2 xuất hiện từ D3. |
-| AC-P2-03 | HUD, FPS, chữ, benchmark một ngày | Playwright ở 1280×720 chạy đủ hai ngày với manifest đề xuất và fixture rút ngắn ca tối, gồm pause Gather/Shop, mua nâng cấp và trường hợp không đủ món. Đo ngắn khoảng 166 FPS trong Gather, bản hẹp 390 px không tràn khung. Headless đủ 22.200 tick mất trung vị 0,522 giây ở máy local. Số đo máy chấm còn chờ. |
-| AC-P2-04 | Regression P1, kiểm tất định, test mới | Ứng viên preset đạt 111/111 test, tag phase-1 đạt 79/79. Ba lần chạy day cùng seed 42 cho cùng SHA-256. |
-| AC-P2-05 | Tag remote trỏ commit main đã kiểm | Chưa gắn tag phase-2. Preset đề xuất chờ đối chiếu bảng chính thức. |
+| AC-P2-03 | HUD, FPS, chữ, benchmark một ngày | Playwright ở 1280×720 chạy đủ hai ngày với manifest đề xuất và fixture rút ngắn ca tối, gồm pause Gather/Shop, mua nâng cấp và trường hợp không đủ món. Đo ngắn khoảng 166 FPS trong Gather, bản hẹp 390 px không tràn khung. Headless đủ 22.200 tick mất trung vị 0,522 giây ở máy local. Playwright cũng kiểm cảnh báo cạn oxy và Cá Sấu, mức tăng uy tín cuối ca và món bán chạy. Số đo máy chấm còn chờ. |
+| AC-P2-04 | Regression P1, kiểm tất định, test mới | Bản bàn giao preset đề xuất đạt 112/112 test, tag phase-1 đạt 79/79. Ba lần chạy day cùng seed 42 cho cùng SHA-256. |
+| AC-P2-05 | Tag remote trỏ commit main đã kiểm | Bản bàn giao trên main dùng tag phase-2. Các giá trị đề xuất và khóa sự kiện còn mở được ghi trong docs/clarify.md. |
 
 Lượt QA trước tích hợp có **79/79 test P1 đạt** và **80/81 test toàn suite**.
 Smoke day khi đó dừng ở CLI do chưa có `--days`. Hai mode độc lập cho JSONL
@@ -45,9 +45,7 @@ python -m chonoi.headless --mode day --days 1 --seed 42 --ticks 22200 --out day-
 
 Giữ JSONL trong thư mục tạm. SHA-256 chung là `aeee58f2260b9141b8803dd8ecf28ccf1d95a0bee4207b0345377c140190ed95`. Test bếp và test món dùng fixture riêng để hai bếp/bốn bàn trên preset mới không đổi ý nghĩa bài kiểm. Test nút lạ cũng tách theo hợp đồng vì `attack` là input hợp lệ từ v1.1.
 
-## Các ca cần thêm vào bộ test bàn giao
+## Việc tiếp tục ở Phase 3
 
-Pause cả ba mode và Shop; resume chạy ngay; giữ nút qua pha; buy chỉ theo frame,
-buy trước shop_done; đủ/thiếu tiền, max/unsupported; active_upgrades đổi ngày kế;
-Shop đóng sau 600 tick hoạt động; ngất mở quán rỗng; D1–D5; cá/quái/recoil/LIFO;
-nhiều đơn giữ kho và no_dish. Chưa có test thực thi cho các mục trong đoạn này.
+Đối chiếu preset và payload còn mở theo P2-01/P2-02. Mở rộng regression qua các ca giữ nút khi đổi pha,
+thiếu tiền và cấp tối đa, dùng tag `phase-2` làm mốc. Kiểm commit của tag bằng `git ls-remote --tags origin refs/tags/phase-2 'refs/tags/phase-2^{}'`.
