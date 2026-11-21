@@ -23,7 +23,7 @@ def ingredients_for(dishes, menu):
 class DaySim:
     mode = "day"
 
-    def __init__(self, tuning, scenario, seed, days=1, *, contract_version="1.1"):
+    def __init__(self, tuning, scenario, seed, days=1, *, contract_version="1.1", repeat_day_plans=False):
         if contract_version not in ("1.1", "1.2"):
             raise BadInput("DaySim cần contract_version 1.1 hoặc 1.2")
         self.contract_version = contract_version
@@ -43,6 +43,7 @@ class DaySim:
                            self.day_tuning)
         self.scenario = scenario
         self.days = days
+        self.repeat_day_plans = repeat_day_plans
         self.day_state = scenario.get("day", {})
         self.money = self.day_state.get("money", 0)
         self.earned = self.day_state.get("earned", 0)
@@ -66,6 +67,8 @@ class DaySim:
         self._build_day()
 
     def _plan_for(self, day):
+        if self.repeat_day_plans:
+            day = (day - 1) % 5 + 1  # Mẫu D1–D5 lặp trong soak. Số ngày của phiên vẫn tăng.
         override = self.day_state.get("day_plan")
         if isinstance(override, dict) and "dishes" not in override:
             plan = deepcopy(override.get(str(day), override.get(f"D{day}")))

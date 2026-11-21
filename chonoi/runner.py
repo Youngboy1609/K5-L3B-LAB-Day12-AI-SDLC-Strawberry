@@ -127,8 +127,9 @@ class V11Session(Session):
 
 
 class DaySession:
-    def __init__(self, tuning, scenario, seed, days, *, contract_version="1.1"):
-        self.sim = DaySim(tuning, scenario, seed, days, contract_version=contract_version)
+    def __init__(self, tuning, scenario, seed, days, *, contract_version="1.1", repeat_day_plans=False):
+        self.sim = DaySim(tuning, scenario, seed, days, contract_version=contract_version,
+                          repeat_day_plans=repeat_day_plans)
         self.tuning, self.mode = tuning, "day"
         self.tick = 0
         self.sim_tick = 0
