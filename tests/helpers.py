@@ -34,10 +34,10 @@ def run_headless(*args, cwd=ROOT):
 
 
 def run_legacy_headless(*args):
-    """Chạy fixture đếm Phase 1/2 với manifest v1.1, kể cả khi mặc định đã lên v1.2."""
+    """Chạy fixture đếm Phase 1/2 với manifest v1.1 trên bản phát hành v1.2/v1.3."""
     with open(os.path.join(ROOT, "game.contract.json"), encoding="utf-8") as f:
         version = json.load(f)["contract_version"]
-    if version != "1.2":
+    if version not in ("1.2", "1.3"):
         return run_headless(*args)
 
     with tempfile.TemporaryDirectory(prefix="chonoi-v11-") as cwd:

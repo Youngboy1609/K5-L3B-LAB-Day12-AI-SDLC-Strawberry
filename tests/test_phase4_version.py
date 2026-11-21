@@ -16,18 +16,26 @@ class Phase4VersionCompatibility(unittest.TestCase):
     def _manifest(self, version="1.3"):
         manifest = load_contract()
         manifest["contract_version"] = version
+        manifest.setdefault("freshness", {"initial": 100, "gather_decay_per_s": 0.5,
+                                           "quan_decay_per_s": 0.25, "spoiled_below": 30})
         manifest["bench_cmd"] = "python3 -m chonoi.benchmark"
         manifest["soak_cmd"] = "python3 -m chonoi.soak"
         return manifest
 
-    def test_v13_manifest_keeps_public_version_and_requires_release_commands(self):
+    def test_v12_and_v13_manifests_keep_public_versions_and_normalize_tuning(self):
+        normalized = []
+        for version in ("1.2", "1.3"):
+            manifest = self._manifest(version)
+            with tempfile.TemporaryDirectory() as temp:
+                path = Path(temp) / "contract.json"
+                path.write_text(json.dumps(manifest), encoding="utf-8")
+                loaded = load_contract(path)
+            self.assertEqual(loaded["contract_version"], version)
+            self.assertEqual(effective_contract_version(loaded["contract_version"]), "1.2")
+            normalized.append(loaded["tuning"])
+        self.assertEqual(normalized[0], normalized[1])
+
         manifest = self._manifest()
-        with tempfile.TemporaryDirectory() as temp:
-            path = Path(temp) / "contract.json"
-            path.write_text(json.dumps(manifest), encoding="utf-8")
-            loaded = load_contract(path)
-        self.assertEqual(loaded["contract_version"], "1.3")
-        self.assertEqual(effective_contract_version(loaded["contract_version"]), "1.2")
         for key in ("bench_cmd", "soak_cmd"):
             for value in ("  ", 'python "unterminated'):
                 invalid = dict(manifest)

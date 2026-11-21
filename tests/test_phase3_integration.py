@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from fractions import Fraction
 
+from chonoi.contract import effective_contract_version
 from helpers import ROOT, events, frames, read_jsonl, snapshots, write_json
 
 FIXTURES = Path(ROOT) / "docs/proof/phase-3/fixtures"
@@ -210,7 +211,8 @@ class FreshnessIntegration(unittest.TestCase):
 
     def test_published_manifest_announces_same_reservations_in_gather_and_quan(self):
         contract = json.loads((Path(ROOT) / "game.contract.json").read_text(encoding="utf-8"))
-        self.assertEqual(contract["contract_version"], "1.2")
+        self.assertIn(contract["contract_version"], ("1.2", "1.3"))
+        self.assertEqual(effective_contract_version(contract["contract_version"]), "1.2")
         self.assertEqual(set(contract["extensions"]), {"flood_current", "reservations"})
         self.save("game.contract.json", contract)
         rows = self.ok("day", self.gather(random_current=False), [{"tick": 0, "interact": True}])
