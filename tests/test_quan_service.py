@@ -1,13 +1,10 @@
-"""Unit test lát 4 (chonoi/sim/quan_service.py): bếp, bưng, phục vụ, tiền, uy tín, đóng ca.
-
-Gọi thẳng ba hàm trên QuanSim dựng từ preset, với một bước tick mô phỏng thứ tự Nghĩa sẽ ghép vào step().
-Khi step() đã ghép xong, các ca hộp đen tương ứng nằm ở tests/test_phase1_rules.py (Quân).
-"""
+"""Kiểm bếp, phục vụ và đóng ca qua QuanSim.step() với preset Phase 1."""
 
 import unittest
 
 from chonoi.contract import load_contract
 from chonoi.ids import IdAllocator
+from chonoi.inputs import InputState
 from chonoi.rng import Streams
 from chonoi.sim import quan_service as qs
 from chonoi.sim.quan import QuanSim
@@ -16,22 +13,17 @@ TUNING = load_contract("game.contract.json")["tuning"]
 Q = TUNING["quan"]
 STOVE = Q["stoves"][0]
 TABLE = Q["tables"][0]
-PATIENCE = int(round(Q["patience_s"] * 60))
 EAT = int(round(Q["eat_s"] * 60))
 
 
-def make_sim(stock=None, customers=None, time_left=None, pos=None):
-    sc = {"stock": stock if stock is not None else {"bong_sung": 2, "ca_loc": 1}, "customers": customers or []}
+def make_sim(stock=None, customers=None, time_left=None, pos=None, tuning=TUNING):
+    sc = {"stock": stock if stock is not None else {"bong_sung": 2, "ca_loc": 1},
+          "customers": customers or [], "random_customers": False}
     if time_left is not None:
         sc["time_left_ticks"] = time_left
     if pos is not None:
         sc["player"] = {"pos": list(pos)}
-    sim = QuanSim(TUNING, sc, Streams(1), IdAllocator())
-    for c in sim.customers:
-        c.setdefault("order_state", "reserved")
-        c.setdefault("state", "waiting")
-        c.setdefault("patience_ticks", PATIENCE)
-    return sim
+    return QuanSim(tuning, sc, Streams(1), IdAllocator())
 
 
 def customer(cid="C1", dish="goi_bong_sung", **kw):
@@ -40,18 +32,9 @@ def customer(cid="C1", dish="goi_bong_sung", **kw):
 
 
 def tick(sim, interact=False):
-    """Thứ tự đã chốt: timer -> advance_stoves -> (move) -> interact -> settle."""
-    ev = []
-    sim.time_left_ticks = max(0, sim.time_left_ticks - 1)
-    for c in sim.customers:
-        if c["state"] == "waiting":
-            c["patience_ticks"] -= 1
-        else:
-            c["eat_ticks"] -= 1
-    qs.advance_stoves(sim, ev)
-    if interact:
-        qs.interact(sim, ev)
-    qs.settle_customers(sim, ev)
+    """Dùng đúng vòng tick chung của live và headless."""
+    edges = {"interact"} if interact else set()
+    ev = sim.step(InputState((0.0, 0.0), {}, edges))
     return [n for n, _ in ev], ev
 
 
@@ -62,7 +45,7 @@ def at(sim, obj):
 def cook_and_pick(sim):
     at(sim, STOVE)
     tick(sim, interact=True)
-    while sim.stoves[0]["state"] != "ready":
+    for _ in range(sim.stoves[0]["cook_ticks_left"]):
         tick(sim)
     tick(sim, interact=True)
     assert sim.hand is not None
@@ -78,12 +61,20 @@ class Stove(unittest.TestCase):
         self.assertNotIn("bong_sung", sim.stock)
         self.assertEqual(sim.stock["ca_loc"], 1)
         c = sim.customers[0]
-        self.assertEqual((c["order_state"], c["reserved"]), ("assigned", {}))
+        self.assertEqual((c["order_status"], c["reserved"]), ("assigned", {}))
         d = sim.stoves[0]["dish"]
         self.assertEqual(d, {"order_id": "C1", "dish_id": "goi_bong_sung", "base_price": 40})
         # bấm lại khi đang nấu: không trừ thêm
         tick(sim, interact=True)
         self.assertNotIn("bong_sung", sim.stock)
+
+    def test_zero_quantity_in_fixture_reservation_does_not_touch_missing_stock(self):
+        sim = make_sim(stock={"bong_sung": 2},
+                       customers=[customer(reserved={"bong_sung": 2, "ca_loc": 0})])
+        at(sim, STOVE)
+        names, _ = tick(sim, interact=True)
+        self.assertEqual(names, ["cook_started"])
+        self.assertEqual(sim.stock, {})
 
     def test_cook_timer_ready_and_ready_ticks(self):
         sim = make_sim(customers=[customer()])
@@ -102,8 +93,8 @@ class Stove(unittest.TestCase):
     def test_oldest_reserved_order_cooked_first(self):
         sim = make_sim(stock={"bong_sung": 2, "ca_loc": 1},
                        customers=[customer("C1", "goi_bong_sung", order_tick=50),
-                                  dict(customer("C2", "ca_loc_nuong_trui", order_tick=10), table_id="T9")])
-        sim.tables.append({"id": "T9", "pos": [15, 9]})
+                                  dict(customer("C2", "ca_loc_nuong_trui", order_tick=10), table_id="T9")],
+                       tuning={**TUNING, "quan": {**Q, "tables": [TABLE, {"id": "T9", "pos": [15, 9]}]}})
         at(sim, STOVE)
         _, ev = tick(sim, interact=True)
         self.assertEqual(ev[0][1]["order_id"], "C2")
@@ -139,7 +130,7 @@ class Serve(unittest.TestCase):
     def test_serve_on_tick_patience_hits_zero_no_tip(self):
         sim = make_sim(customers=[customer()])
         cook_and_pick(sim)
-        sim.customers[0]["patience_ticks"] = 1
+        sim.customers[0]["patience_ticks_left"] = 1
         at(sim, TABLE)
         names, ev = tick(sim, interact=True)
         self.assertEqual(names, ["served"])
@@ -152,7 +143,7 @@ class Serve(unittest.TestCase):
         cook_and_pick(sim)
         at(sim, TABLE)
         _, ev = tick(sim, interact=True)
-        tip = int(round(40 * Q["tip_rate"]))
+        tip = int(40 * Q["tip_rate"])
         self.assertEqual(ev[0][1]["tip"], tip)
         for _ in range(EAT - 1):
             self.assertEqual(tick(sim)[0], [])
@@ -161,6 +152,13 @@ class Serve(unittest.TestCase):
         self.assertEqual((sim.money, sim.earned, sim.shift_earned), (40 + tip,) * 3)
         self.assertAlmostEqual(sim.reputation, Q["reputation_initial"] + Q["tip_reputation"])
         self.assertEqual(sim.customers, [])
+
+    def test_fractional_tip_is_floored(self):
+        sim = make_sim(customers=[customer()], tuning={**TUNING, "quan": {**Q, "tip_rate": 0.29}})
+        cook_and_pick(sim)
+        at(sim, TABLE)
+        _, events = tick(sim, interact=True)
+        self.assertEqual(events[0][1]["tip"], 11)
 
     def test_reputation_clamped_at_max(self):
         sim = make_sim(customers=[customer()])
@@ -178,7 +176,7 @@ class Leave(unittest.TestCase):
         sim = make_sim(customers=[customer()])
         at(sim, STOVE)
         tick(sim, interact=True)
-        sim.customers[0]["patience_ticks"] = 1
+        sim.customers[0]["patience_ticks_left"] = 1
         names, _ = tick(sim)
         self.assertEqual(names, ["customer_left", "dish_discarded"])
         self.assertEqual(sim.stoves[0]["state"], "idle")
@@ -186,7 +184,7 @@ class Leave(unittest.TestCase):
         self.assertAlmostEqual(sim.reputation, Q["reputation_initial"] + Q["left_reputation_delta"])
 
     def test_reserved_customer_leaves_stock_untouched(self):
-        sim = make_sim(customers=[customer(patience_ticks=1)])
+        sim = make_sim(customers=[customer(patience_ticks_left=1)])
         names, _ = tick(sim)
         self.assertEqual(names, ["customer_left"])
         self.assertEqual(sim.stock, {"bong_sung": 2, "ca_loc": 1})
@@ -194,13 +192,13 @@ class Leave(unittest.TestCase):
     def test_dish_in_hand_discarded_when_customer_leaves(self):
         sim = make_sim(customers=[customer()])
         cook_and_pick(sim)
-        sim.customers[0]["patience_ticks"] = 1
+        sim.customers[0]["patience_ticks_left"] = 1
         names, _ = tick(sim)
         self.assertEqual(names, ["customer_left", "dish_discarded"])
         self.assertIsNone(sim.hand)
 
     def test_reputation_clamped_at_min(self):
-        sim = make_sim(customers=[customer(patience_ticks=1)])
+        sim = make_sim(customers=[customer(patience_ticks_left=1)])
         sim.reputation = Q["reputation_min"]
         tick(sim)
         self.assertEqual(sim.reputation, Q["reputation_min"])
@@ -228,9 +226,10 @@ class Close(unittest.TestCase):
         self.assertEqual(names, ["served", "paid", "quan_end"])
 
     def test_close_waiting_customer_no_penalty(self):
-        sim = make_sim(customers=[customer()], time_left=1)
-        names, _ = tick(sim)
+        sim = make_sim(customers=[customer(patience_ticks_left=1)], time_left=1)
+        names, events = tick(sim)
         self.assertEqual(names, ["customer_left", "quan_end"])
+        self.assertEqual(events[0][1]["reason"], "closing")
         self.assertEqual(sim.reputation, Q["reputation_initial"])
 
 

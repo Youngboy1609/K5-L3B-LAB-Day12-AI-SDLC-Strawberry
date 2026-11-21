@@ -1,15 +1,9 @@
-"""Buổi tối — Mở Quán. KHUNG: đi lại, chặn biên, đồng hồ, kho nạp từ file/scenario.
-
-Nhóm viết tiếp (PRD-0 mục F, Quán):
-  TODO(nhóm, lát 3): khách đến theo lịch, chọn món nấu được, giữ chỗ nguyên liệu, kiên nhẫn,
-                     bỏ đi (customer_left), no_dish, vòng đời khách.
-  TODO(nhóm, lát 4): interact tại bếp/bàn (cook_started, dish_ready, dish_picked, served),
-                     ăn xong trả tiền (paid), boa, uy tín, hết ca (quan_end).
-"""
+"""Buổi tối — lịch khách, kho và vòng tick chung của quán (PRD-0 mục F)."""
 
 from ..ids import sort_by_id
 from ..errors import BadInput
 from .ramp import ramp_velocity
+from .quan_service import advance_stoves, interact, settle_customers
 
 TICK = 60.0
 
@@ -118,6 +112,7 @@ class QuanSim:
                 raise BadInput(f"customers.{customer['id']}.dish_id không hợp lệ")
             expected = self.menu[dish_id]["recipe"]
             held = validate_items(customer.get("reserved", {}))
+            customer["reserved"] = held
             if status == "reserved":
                 if held != expected or state != "waiting":
                     raise BadInput(f"customers.{customer['id']}: reserved phải đúng công thức và đang chờ")
@@ -194,16 +189,13 @@ class QuanSim:
                 customer["patience_ticks_left"] -= 1
             elif customer.get("state") == "eating" and customer.get("eat_ticks_left", 0) > 0:
                 customer["eat_ticks_left"] -= 1
+        advance_stoves(self, events)
         self._move(inp)
-        # Integration contract: Quang's service module is not present in this checkout.
-        # Call advance_stoves(sim, events) before movement, interact(sim, events) after movement,
-        # then settle_customers(sim, events) before scheduling arrivals.
-        self._spawn_scheduled_customer(events)
-        if self.time_left_ticks <= 0:
-            self.done = True
-            self.reason = "time"
-            events.append(("quan_end", {"reason": "time", "money": self.money, "earned": self.earned,
-                                        "shift_earned": self.shift_earned, "reputation": self.reputation}))
+        if inp.pressed("interact"):
+            interact(self, events)
+        settle_customers(self, events)
+        if not self.done:
+            self._spawn_scheduled_customer(events)
         return events
 
     def _spawn_scheduled_customer(self, events):
