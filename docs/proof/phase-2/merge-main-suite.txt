@@ -1,0 +1,125 @@
+QA branch parent: 7946cfa
+Merged origin/main: 718cf26698405f4188a1da425837969bf10986f3
+Command: PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
+Exit: 1; 100 tests, 99 pass, 1 failure (day blocked by manifest v1.0)
+
+test_contact_emits_hit_and_faints_with_empty_inventory (test_gather_monsters.GatherMonsters.test_contact_emits_hit_and_faints_with_empty_inventory) ... ok
+test_contact_requires_minimum_player_depth (test_gather_monsters.GatherMonsters.test_contact_requires_minimum_player_depth) ... ok
+test_fixture_recoil_cannot_hit_even_on_last_step (test_gather_monsters.GatherMonsters.test_fixture_recoil_cannot_hit_even_on_last_step) ... ok
+test_phase1_has_no_monster_field_or_hit (test_gather_monsters.GatherMonsters.test_phase1_has_no_monster_field_or_hit) ... ok
+test_state_input_and_clean_stop (test_live.LiveServerTest.test_state_input_and_clean_stop) ... ok
+test_catch_on_last_tick_is_in_exported_inventory (test_phase1_rules.GatherRules.test_catch_on_last_tick_is_in_exported_inventory) ... ok
+test_caught_school_cannot_be_caught_again_after_cooldown (test_phase1_rules.GatherRules.test_caught_school_cannot_be_caught_again_after_cooldown) ... ok
+test_choke_occurs_after_full_interval_including_empty_tick (test_phase1_rules.GatherRules.test_choke_occurs_after_full_interval_including_empty_tick) ... ok
+test_faint_discards_hold_and_exports_empty_inventory (test_phase1_rules.GatherRules.test_faint_discards_hold_and_exports_empty_inventory) ... ok
+test_full_hold_preserves_ready_node (test_phase1_rules.GatherRules.test_full_hold_preserves_ready_node) ... ok
+test_insufficient_capacity_preserves_entire_fish_school (test_phase1_rules.GatherRules.test_insufficient_capacity_preserves_entire_fish_school) ... ok
+test_regrown_node_can_be_harvested_in_same_tick (test_phase1_rules.GatherRules.test_regrown_node_can_be_harvested_in_same_tick) ... ok
+test_surface_refills_oxygen_and_clamps_at_max (test_phase1_rules.GatherRules.test_surface_refills_oxygen_and_clamps_at_max) ... ok
+test_underwater_consumes_one_oxygen_per_tick (test_phase1_rules.GatherRules.test_underwater_consumes_one_oxygen_per_tick) ... ok
+test_cooking_consumes_reserved_stock_once_when_button_is_held (test_phase1_rules.QuanRules.test_cooking_consumes_reserved_stock_once_when_button_is_held) ... ok
+test_dish_becomes_ready_after_configured_cook_duration (test_phase1_rules.QuanRules.test_dish_becomes_ready_after_configured_cook_duration) ... ok
+test_empty_stock_emits_no_dish_only_at_arrival (test_phase1_rules.QuanRules.test_empty_stock_emits_no_dish_only_at_arrival) ... ok
+test_first_customer_arrives_on_schedule_without_consuming_stock (test_phase1_rules.QuanRules.test_first_customer_arrives_on_schedule_without_consuming_stock) ... ok
+test_random_customers_false_disables_arrivals (test_phase1_rules.QuanRules.test_random_customers_false_disables_arrivals) ... ok
+test_ready_dish_moves_to_empty_hand (test_phase1_rules.QuanRules.test_ready_dish_moves_to_empty_hand) ... ok
+test_same_seed_and_cooking_inputs_produce_identical_bytes (test_phase1_rules.QuanRules.test_same_seed_and_cooking_inputs_produce_identical_bytes) ... ok
+test_served_customer_finishes_meal_and_pays (test_phase1_rules.QuanRules.test_served_customer_finishes_meal_and_pays) ... ok
+test_waiting_customer_leaves_and_releases_reservation_without_consumption (test_phase1_rules.QuanRules.test_waiting_customer_leaves_and_releases_reservation_without_consumption) ... ok
+test_three_tick_day_handoff (test_phase2_day.DaySmoke.test_three_tick_day_handoff) ... FAIL
+test_same_seed_inputs_produce_identical_bytes (test_phase2_regression.StandaloneDeterminism.test_same_seed_inputs_produce_identical_bytes) ... ok
+test_bad_frames_raise (test_python_starter_units.Units.test_bad_frames_raise) ... ok
+test_catch_is_a_v10_button_and_attack_is_not (test_python_starter_units.Units.test_catch_is_a_v10_button_and_attack_is_not) ... ok
+test_id_allocator_continues_after_max (test_python_starter_units.Units.test_id_allocator_continues_after_max) ... ok
+test_id_sorting (test_python_starter_units.Units.test_id_sorting) ... ok
+test_input_edges_and_inherit (test_python_starter_units.Units.test_input_edges_and_inherit) ... ok
+test_live_inputs_keep_fast_tap_edge (test_python_starter_units.Units.test_live_inputs_keep_fast_tap_edge) ... ok
+test_session_steps_gather_and_dock (test_python_starter_units.Units.test_session_steps_gather_and_dock) ... ok
+test_fixture_reservations_cannot_exceed_physical_stock (test_quan_customers.QuanCustomerScheduling.test_fixture_reservations_cannot_exceed_physical_stock) ... ok
+test_fixture_reserved_defaults_and_patience_starts_on_next_tick (test_quan_customers.QuanCustomerScheduling.test_fixture_reserved_defaults_and_patience_starts_on_next_tick) ... ok
+test_no_dish_event_occurs_at_first_phase_schedule (test_quan_customers.QuanCustomerScheduling.test_no_dish_event_occurs_at_first_phase_schedule)
+Kho rỗng phát no_dish ở tick hẹn đầu tiên. ... ok
+test_payload_price_must_be_an_integer (test_quan_customers.QuanCustomerScheduling.test_payload_price_must_be_an_integer) ... ok
+test_random_customers_false_keeps_fixture_only (test_quan_customers.QuanCustomerScheduling.test_random_customers_false_keeps_fixture_only) ... ok
+test_fixture_customer_outside_plan_rejected (test_quan_day_menu.DayMenu.test_fixture_customer_outside_plan_rejected) ... ok
+test_plan_dish_without_stock_gives_no_dish (test_quan_day_menu.DayMenu.test_plan_dish_without_stock_gives_no_dish) ... ok
+test_plan_filters_before_stock (test_quan_day_menu.DayMenu.test_plan_filters_before_stock) ... ok
+test_plan_with_unknown_dish_rejected (test_quan_day_menu.DayMenu.test_plan_with_unknown_dish_rejected) ... ok
+test_snapshot_lists_tonight_menu (test_quan_day_menu.DayMenu.test_snapshot_lists_tonight_menu) ... ok
+test_standalone_uses_full_menu (test_quan_day_menu.DayMenu.test_standalone_uses_full_menu) ... ok
+test_bad_start_rejected (test_quan_day_menu.Handover.test_bad_start_rejected) ... ok
+test_dish_ids_must_be_list (test_quan_day_menu.Handover.test_dish_ids_must_be_list) ... ok
+test_fixture_eating_customer_counts_as_served (test_quan_day_menu.Handover.test_fixture_eating_customer_counts_as_served) ... ok
+test_money_above_earned_rejected (test_quan_day_menu.Handover.test_money_above_earned_rejected) ... ok
+test_shift_report_on_quan_end_once (test_quan_day_menu.Handover.test_shift_report_on_quan_end_once) ... ok
+test_start_stats_carried_and_shift_earned_resets (test_quan_day_menu.Handover.test_start_stats_carried_and_shift_earned_resets) ... ok
+test_overbooked_fixture_rejected (test_quan_day_menu.SharedStock.test_overbooked_fixture_rejected) ... ok
+test_reservations_share_physical_stock_and_cook_oldest (test_quan_day_menu.SharedStock.test_reservations_share_physical_stock_and_cook_oldest) ... ok
+test_standalone_adds_no_new_keys (test_quan_day_menu.StandaloneV10Format.test_standalone_adds_no_new_keys) ... ok
+test_close_discards_dish_still_on_stove (test_quan_service.Close.test_close_discards_dish_still_on_stove) ... ok
+test_close_waiting_customer_no_penalty (test_quan_service.Close.test_close_waiting_customer_no_penalty) ... ok
+test_close_with_eating_customer_pays_and_ends (test_quan_service.Close.test_close_with_eating_customer_pays_and_ends) ... ok
+test_serve_on_last_tick_then_close (test_quan_service.Close.test_serve_on_last_tick_then_close) ... ok
+test_dish_in_hand_discarded_when_customer_leaves (test_quan_service.Leave.test_dish_in_hand_discarded_when_customer_leaves) ... ok
+test_reputation_clamped_at_min (test_quan_service.Leave.test_reputation_clamped_at_min) ... ok
+test_reserved_customer_leaves_stock_untouched (test_quan_service.Leave.test_reserved_customer_leaves_stock_untouched) ... ok
+test_waiting_customer_leaves_dish_discarded_no_refund (test_quan_service.Leave.test_waiting_customer_leaves_dish_discarded_no_refund) ... ok
+test_eat_then_pay_with_tip_and_reputation (test_quan_service.Serve.test_eat_then_pay_with_tip_and_reputation) ... ok
+test_fractional_tip_is_floored (test_quan_service.Serve.test_fractional_tip_is_floored) ... ok
+test_reputation_clamped_at_max (test_quan_service.Serve.test_reputation_clamped_at_max) ... ok
+test_reputation_does_not_drift (test_quan_service.Serve.test_reputation_does_not_drift) ... ok
+test_serve_on_tick_patience_hits_zero_no_tip (test_quan_service.Serve.test_serve_on_tick_patience_hits_zero_no_tip) ... ok
+test_serving_keeps_price_from_cook_start (test_quan_service.Serve.test_serving_keeps_price_from_cook_start) ... ok
+test_wrong_order_rejected (test_quan_service.Serve.test_wrong_order_rejected) ... ok
+test_cook_timer_ready_and_ready_ticks (test_quan_service.Stove.test_cook_timer_ready_and_ready_ticks) ... ok
+test_oldest_reserved_order_cooked_first (test_quan_service.Stove.test_oldest_reserved_order_cooked_first) ... ok
+test_pick_moves_dish_to_hand (test_quan_service.Stove.test_pick_moves_dish_to_hand) ... ok
+test_pick_with_full_hand_does_nothing (test_quan_service.Stove.test_pick_with_full_hand_does_nothing) ... ok
+test_stock_only_deducted_at_cook_start (test_quan_service.Stove.test_stock_only_deducted_at_cook_start) ... ok
+test_two_stoves_tie_broken_by_id (test_quan_service.Stove.test_two_stoves_tie_broken_by_id) ... ok
+test_zero_quantity_in_fixture_reservation_does_not_touch_missing_stock (test_quan_service.Stove.test_zero_quantity_in_fixture_reservation_does_not_touch_missing_stock) ... ok
+test_out_of_radius_does_nothing (test_quan_service.Target.test_out_of_radius_does_nothing) ... ok
+test_stove_wins_tie_and_edge_counts (test_quan_service.Target.test_stove_wins_tie_and_edge_counts) ... ok
+test_con_01_ticks_zero_and_end_line (test_smoke_p1.Contract.test_con_01_ticks_zero_and_end_line) ... ok
+test_con_02_deterministic_bytes (test_smoke_p1.Contract.test_con_02_deterministic_bytes) ... ok
+test_con_03_bad_input_exit_2 (test_smoke_p1.Contract.test_con_03_bad_input_exit_2) ... ok
+test_con_03_old_and_future_modes_rejected (test_smoke_p1.Contract.test_con_03_old_and_future_modes_rejected) ... ok
+test_gather_snapshot_has_gather_fields (test_smoke_p1.Contract.test_gather_snapshot_has_gather_fields) ... ok
+test_scenario_out_of_domain_exit_2 (test_smoke_p1.Contract.test_scenario_out_of_domain_exit_2) ... ok
+test_inv_01_gather_writes_inventory_quan_reads_it (test_smoke_p1.Integration.test_inv_01_gather_writes_inventory_quan_reads_it)
+Ví dụ smoke test trong PRD-0 mục G: cập bến ở tick 0, quán đọc kho đúng nội dung. ... ok
+test_inv_01_not_written_when_tick_limit_first (test_smoke_p1.Integration.test_inv_01_not_written_when_tick_limit_first) ... ok
+test_inv_bad_schema_exit_2 (test_smoke_p1.Integration.test_inv_bad_schema_exit_2) ... ok
+test_inventory_and_scenario_stock_conflict (test_smoke_p1.Integration.test_inventory_and_scenario_stock_conflict) ... ok
+test_inventory_flags_mode_mismatch_exit_2 (test_smoke_p1.Integration.test_inventory_flags_mode_mismatch_exit_2) ... ok
+test_move_01_swim_speed_after_ramp (test_smoke_p1.Movement.test_move_01_swim_speed_after_ramp)
+Bỏ 6 tick tăng tốc rồi đo 60 tick: quãng ≈ swim_speed × 1 s (±0.1). Ngang, xuống, chéo (không nhanh hơn). ... ok
+test_move_02_heading_positive_is_down (test_smoke_p1.Movement.test_move_02_heading_positive_is_down) ... ok
+test_move_03_edge_clamp (test_smoke_p1.Movement.test_move_03_edge_clamp)
+Chặn từng mép của vùng nước, kể cả d không âm (không bay lên khỏi mặt nước) và đáy d = 30. ... ok
+test_move_mep_vel_ve_0 (test_smoke_p1.Movement.test_move_mep_vel_ve_0) ... ok
+test_move_ramp_doi_huong_trong_tran (test_smoke_p1.Movement.test_move_ramp_doi_huong_trong_tran)
+Đảo từ +speed sang -speed: vận tốc chạm mục tiêu sau tối đa ramp_max_ticks tick kể từ lúc đổi input. ... ok
+test_time_ends_gather_and_keeps_hold (test_smoke_p1.Movement.test_time_ends_gather_and_keeps_hold) ... ok
+test_khoi_sai_mode_exit_2 (test_smoke_p1.ScenarioModes.test_khoi_sai_mode_exit_2) ... ok
+test_quan_fixture_khong_hop_le_exit_2 (test_smoke_p1.ScenarioModes.test_quan_fixture_khong_hop_le_exit_2) ... ok
+test_quan_player_vel_hop_le (test_smoke_p1.ScenarioModes.test_quan_player_vel_hop_le) ... ok
+test_good (test_team_check.TeamCheck.test_good) ... ok
+test_template_is_rejected (test_team_check.TeamCheck.test_template_is_rejected) ... ok
+test_too_few_members (test_team_check.TeamCheck.test_too_few_members) ... ok
+test_wrong_size_duplicate_and_outsider (test_team_check.TeamCheck.test_wrong_size_duplicate_and_outsider) ... ok
+
+======================================================================
+FAIL: test_three_tick_day_handoff (test_phase2_day.DaySmoke.test_three_tick_day_handoff)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase2_day.py", line 23, in test_three_tick_day_handoff
+    self.assertEqual(code, 0, err)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : đầu vào sai: --mode day chưa hỗ trợ ở contract v1.0 (có từ v1.1)
+
+
+----------------------------------------------------------------------
+Ran 100 tests in 5.627s
+
+FAILED (failures=1)

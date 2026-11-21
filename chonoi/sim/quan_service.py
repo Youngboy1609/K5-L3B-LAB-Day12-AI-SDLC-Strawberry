@@ -20,7 +20,8 @@ Hợp đồng dữ liệu với lát 3 (khách). Một khách = một đơn:
     order_tick       tick gọi món (chọn đơn reserved cũ nhất, hòa thì theo id bàn)
     patience_ticks_left, eat_ticks_left, base_price, tip
 Payload món ở bếp và trên tay: {"order_id", "dish_id", "base_price"}. order_id là id khách.
-Giá lấy từ menu khi bắt đầu nấu. settle_customers phát quan_end sau khi dọn ca.
+Giá lấy từ menu khi bắt đầu nấu. settle_customers phát quan_end (một lần) sau khi dọn ca, kèm báo cáo
+ca `sim.shift` (chỉ mode `day`): served, paid, left (hết kiên nhẫn), left_closing (rời lúc đóng ca), tips.
 
 Số liệu chỉ đọc từ tuning (`sim.t`, `sim.menu`); không dùng ngẫu nhiên.
 """
@@ -149,6 +150,7 @@ def _interact_table(sim, tb, events):
     c["eat_ticks_left"] = _ticks(sim.t["eat_s"])
     c["base_price"] = price
     c["tip"] = tip
+    sim.shift["served"] += 1
     dish = sim.hand
     sim.hand = None
     events.append(("served", {"customer_id": c["id"], "table_id": tb["id"], **_dish_payload(dish),
@@ -164,6 +166,8 @@ def _pay(sim, c, events, reason):
     sim.money += amount
     sim.earned += amount
     sim.shift_earned += amount
+    sim.shift["paid"] += 1
+    sim.shift["tips"] += c["tip"]
     if c["tip"] > 0:
         sim.reputation = _clamp_rep(sim, sim.reputation + sim.t["tip_reputation"])
     events.append(("paid", {"customer_id": c["id"], "table_id": c["table_id"], "order_id": c["id"],
@@ -199,6 +203,7 @@ def settle_customers(sim, events):
         else:
             if c["patience_ticks_left"] > 0 and not closing:
                 continue
+            sim.shift["left_closing" if closing else "left"] += 1
             if not closing:
                 sim.reputation = _clamp_rep(sim, sim.reputation + sim.t["left_reputation_delta"])
             events.append(("customer_left", {"customer_id": c["id"], "table_id": c["table_id"],
@@ -210,4 +215,5 @@ def settle_customers(sim, events):
         sim.done = True
         sim.reason = "time"
         events.append(("quan_end", {"reason": "time", "money": sim.money, "earned": sim.earned,
-                                    "shift_earned": sim.shift_earned, "reputation": sim.reputation}))
+                                    "shift_earned": sim.shift_earned, "reputation": sim.reputation,
+                                    **(dict(sim.shift) if sim.day_mode else {})}))
