@@ -146,6 +146,33 @@ def _validate_quan(b, tuning):
             _check_ids(arr, b[arr])
     if "stock" in b:
         validate_items(b["stock"])
+    if "reputation" in b:
+        value = b["reputation"]
+        q = tuning["quan"]
+        if not _num(value) or not q["reputation_min"] <= value <= q["reputation_max"]:
+            raise BadInput("reputation phải hữu hạn và trong miền tuning")
+    menu = tuning["menu"]
+    for name, allowed in (("stoves", {"id", "pos", "state", "dish", "cook_ticks_left", "ready_ticks"}),
+                          ("tables", {"id", "pos"})):
+        for e in b.get(name, []):
+            extra = set(e) - allowed
+            if extra:
+                raise BadInput(f"{name}.{e['id']}: trường lạ {sorted(extra)}")
+            if "pos" in e:
+                _pos(f"{name}.{e['id']}.pos", e["pos"], tuning["quan"]["bounds"], axes=("x", "z"))
+            if name == "stoves":
+                state = e.get("state", "idle")
+                if state not in ("idle", "cooking", "ready"):
+                    raise BadInput(f"stoves.{e['id']}.state không hợp lệ")
+                for key in ("cook_ticks_left", "ready_ticks"):
+                    if key in e:
+                        _nonneg_int(f"stoves.{e['id']}.{key}", e[key])
+                if "dish" in e and e["dish"] is not None:
+                    _validate_quan_payload(f"stoves.{e['id']}.dish", e["dish"], menu)
+                if state in ("idle", "cooking") and e.get("ready_ticks", 0) != 0:
+                    raise BadInput(f"stoves.{e['id']}: idle/cooking không có ready_ticks")
+    if "hand" in b and b["hand"] is not None:
+        _validate_quan_payload("hand", b["hand"], menu)
     p = b.get("player", {})
     if not isinstance(p, dict) or set(p) - QUAN_PLAYER_KEYS:
         raise BadInput("quan.player chỉ có pos và vel")
@@ -159,5 +186,49 @@ def _validate_quan(b, tuning):
     for c in b.get("customers", []):
         if not isinstance(c.get("table_id"), str) or c["table_id"] not in known:
             raise BadInput(f"customers.{c['id']}: table_id phải là bàn có thật")
+        allowed_customer = {"id", "table_id", "state", "order_tick", "patience_ticks_left", "order_status",
+                            "dish_id", "eat_ticks_left", "tip", "base_price", "reserved"}
+        extra = set(c) - allowed_customer
+        if extra:
+            raise BadInput(f"customers.{c['id']}: trường lạ {sorted(extra)}")
+        if c.get("state", "waiting") not in ("waiting", "eating"):
+            raise BadInput(f"customers.{c['id']}.state không hợp lệ")
+        if c.get("order_status", "reserved") not in ("reserved", "assigned", "unfulfillable", "served"):
+            raise BadInput(f"customers.{c['id']}.order_status không hợp lệ")
+        for key in ("order_tick", "patience_ticks_left", "eat_ticks_left", "tip"):
+            if key in c:
+                _nonneg_int(f"customers.{c['id']}.{key}", c[key])
+        if "reserved" in c:
+            validate_items(c["reserved"])
+        if "dish_id" in c and (not isinstance(c["dish_id"], str) or c["dish_id"] not in tuning["menu"]):
+            raise BadInput(f"customers.{c['id']}.dish_id không hợp lệ")
+        if c.get("state", "waiting") == "waiting" and c.get("eat_ticks_left", 0) != 0:
+            raise BadInput(f"customers.{c['id']}: waiting không có eat timer")
+        if "base_price" in c:
+            _nonneg_int(f"customers.{c['id']}.base_price", c["base_price"])
+        if c.get("state", "waiting") == "eating":
+            if c.get("order_status", "reserved") != "served" or "dish_id" not in c:
+                raise BadInput(f"customers.{c['id']}: eating cần đơn served và dish_id")
+            if c.get("eat_ticks_left", 0) <= 0 or "base_price" not in c or "tip" not in c:
+                raise BadInput(f"customers.{c['id']}: eating cần timer dương, base_price và tip")
+            dish = menu[c["dish_id"]]
+            if c["base_price"] != dish["price"]:
+                raise BadInput(f"customers.{c['id']}.base_price không khớp giá món")
     if len(table_ids) != len(set(table_ids)):
         raise BadInput("hai khách cùng bàn")
+    if "random_customers" in b and not isinstance(b["random_customers"], bool):
+        raise BadInput("random_customers phải là boolean")
+
+
+def _validate_quan_payload(name, payload, menu):
+    if not isinstance(payload, dict) or set(payload) != {"order_id", "dish_id", "base_price"}:
+        raise BadInput(f"{name} phải có order_id, dish_id, base_price")
+    if not isinstance(payload["order_id"], str) or not payload["order_id"]:
+        raise BadInput(f"{name}.order_id phải là chuỗi khác rỗng")
+    dish_id = payload["dish_id"]
+    if not isinstance(dish_id, str) or dish_id not in menu:
+        raise BadInput(f"{name}.dish_id không hợp lệ")
+    price = payload["base_price"]
+    _nonneg_int(f"{name}.base_price", price)
+    if price != menu[dish_id]["price"]:
+        raise BadInput(f"{name}.base_price không khớp giá món")
