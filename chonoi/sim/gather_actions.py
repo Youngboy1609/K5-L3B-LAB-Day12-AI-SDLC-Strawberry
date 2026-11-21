@@ -58,8 +58,7 @@ def try_harvest(sim, events):
         events.append(("hold_full", {"hold_count": len(sim.hold),
                                      "hold_capacity": sim.t["hold_capacity"]}))
         return False
-    for _ in range(count):
-        sim.hold.append(node["kind"])
+    sim.add_to_hold(node["kind"], count)
     node["regrow_ticks"] = int(round(sim.t["regrow_s"] * TICK))
     events.append(("gather", {"node_id": node["id"], "kind": node["kind"], "amount": count}))
     return True
@@ -88,8 +87,7 @@ def try_catch(sim, events):
         events.append(("hold_full", {"hold_count": len(sim.hold),
                                      "hold_capacity": sim.t["hold_capacity"]}))
         return False
-    for _ in range(count):
-        sim.hold.append(fish["kind"])
+    sim.add_to_hold(fish["kind"], count)
     sim.fish.remove(fish)
     sim.catch_cd_ticks = int(round(sim.t["catch_cooldown_s"] * TICK))
     events.append(("fish_caught", {"fish_id": fish["id"], "kind": fish["kind"], "count": count}))
