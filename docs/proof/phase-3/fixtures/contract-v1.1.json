@@ -1,0 +1,128 @@
+{
+  "contract_version": "1.1",
+  "team": "strawberry",
+  "team_size": 6,
+  "build_cmd": "true",
+  "run_cmd": "python3 -m chonoi.live --mode day",
+  "headless_cmd": "python3 -m chonoi.headless",
+  "extensions": [],
+  "tuning": {
+    "tick_hz": 60,
+    "gather": {
+      "duration_s": 180,
+      "bounds": {"x": [0, 100], "d": [0, 30]},
+      "dock_pos": [2, 0],
+      "dock_radius": 3,
+      "start_pos": [2, 0],
+      "start_heading_deg": 0,
+      "swim_speed": 4.0,
+      "ramp_max_ticks": 6,
+      "surface_depth": 0.5,
+      "oxygen_max_s": 30,
+      "oxygen_refill_per_tick": 6,
+      "choke_interval_ticks": 60,
+      "hp_max": 3,
+      "hold_capacity": 12,
+      "interact_radius": 2.0,
+      "node_yield": 1,
+      "regrow_s": 20,
+      "catch_radius": 2.0,
+      "catch_cooldown_s": 0.5,
+      "fish_yield": {"ca_linh": 3, "ca_loc": 1, "ca_keo": 1},
+      "fish_motion": {
+        "ca_linh": {"speed_m_per_s": 0.4},
+        "ca_loc": {"speed_m_per_s": 0.3},
+        "ca_keo": {"speed_m_per_s": 0.5}
+      },
+      "fish_spawn": {
+        "interval_s": 20,
+        "kinds": ["ca_linh", "ca_loc", "ca_keo"],
+        "area": {"x": [8, 92], "d": [3, 12]},
+        "max": 10
+      },
+      "nodes": [
+        {"id": "N1", "kind": "bong_dien_dien", "pos": [12, 0]},
+        {"id": "N2", "kind": "bong_dien_dien", "pos": [28, 0]},
+        {"id": "N3", "kind": "bong_sung", "pos": [44, 0]},
+        {"id": "N4", "kind": "bong_sung", "pos": [60, 0]},
+        {"id": "N5", "kind": "keo_neo", "pos": [18, 0]},
+        {"id": "N6", "kind": "keo_neo", "pos": [36, 0]}
+      ],
+      "fish_initial": [
+        {"id": "F1", "kind": "ca_linh", "pos": [15, 5], "heading_deg": 0},
+        {"id": "F2", "kind": "ca_loc", "pos": [30, 10], "heading_deg": 0},
+        {"id": "F3", "kind": "ca_keo", "pos": [24, 4], "heading_deg": 0},
+        {"id": "F4", "kind": "ca_loc", "pos": [60, 16], "heading_deg": 0},
+        {"id": "F5", "kind": "ca_linh", "pos": [75, 5], "heading_deg": 0},
+        {"id": "F6", "kind": "ca_keo", "pos": [48, 8], "heading_deg": 180}
+      ]
+    },
+    "quan": {
+      "duration_s": 180,
+      "bounds": {"x": [0, 16], "z": [0, 10]},
+      "start_pos": [8, 5],
+      "walk_speed": 4.0,
+      "ramp_max_ticks": 6,
+      "interact_radius": 1.5,
+      "stoves": [{"id": "B1", "pos": [2, 8]}, {"id": "B2", "pos": [5, 8]}],
+      "tables": [
+        {"id": "T1", "pos": [9, 2]},
+        {"id": "T2", "pos": [12, 2]},
+        {"id": "T3", "pos": [9, 8]},
+        {"id": "T4", "pos": [13, 8]}
+      ],
+      "first_customer_tick": 120,
+      "customer_interval_s": 15,
+      "patience_s": 60,
+      "eat_s": 10,
+      "burn_s": null,
+      "carry_limit": 1,
+      "tip_rate": 0.2,
+      "tip_min_patience_ratio": 0.5,
+      "tip_reputation": 0.2,
+      "left_reputation_delta": -0.5,
+      "reputation_initial": 3.0,
+      "reputation_min": 0,
+      "reputation_max": 5
+    },
+    "menu": {
+      "ca_loc_nuong_trui": {"recipe": {"ca_loc": 1}, "cook_s": 6, "price": 60},
+      "goi_bong_sung": {"recipe": {"bong_sung": 2}, "cook_s": 4, "price": 40},
+      "lau_ca_linh_dien_dien": {"recipe": {"ca_linh": 3, "bong_dien_dien": 1}, "cook_s": 10, "price": 120},
+      "ca_keo_kho_keo_neo": {"recipe": {"ca_keo": 1, "keo_neo": 1}, "cook_s": 8, "price": 85},
+      "ca_keo_chien": {"recipe": {"ca_keo": 1}, "cook_s": 6, "price": 60},
+      "goi_keo_neo": {"recipe": {"keo_neo": 2}, "cook_s": 4, "price": 40}
+    },
+    "day": {
+      "shop_ticks": 600,
+      "day_plans": {
+        "1": {"dishes": {"ca_loc_nuong_trui": 3, "goi_bong_sung": 3}},
+        "2": {"dishes": {"ca_keo_kho_keo_neo": 2, "lau_ca_linh_dien_dien": 1}},
+        "3": {"dishes": {"ca_loc_nuong_trui": 2, "goi_keo_neo": 2, "ca_keo_chien": 2}},
+        "4": {"dishes": {"lau_ca_linh_dien_dien": 2, "goi_bong_sung": 1, "ca_keo_kho_keo_neo": 1}},
+        "5": {"dishes": {"ca_loc_nuong_trui": 1, "goi_bong_sung": 1, "lau_ca_linh_dien_dien": 1, "ca_keo_kho_keo_neo": 1, "ca_keo_chien": 1, "goi_keo_neo": 1}}
+      },
+      "upgrades": {
+        "oxygen": {
+          "name": "Bình oxy",
+          "max_level": 2,
+          "levels": [
+            null,
+            {"price": 80, "effects": {"gather.oxygen_max_s": 45}},
+            {"price": 160, "effects": {"gather.oxygen_max_s": 60}}
+          ]
+        },
+        "hp": {
+          "name": "Máu tối đa",
+          "max_level": 2,
+          "levels": [
+            null,
+            {"price": 120, "effects": {"gather.hp_max": 4}},
+            {"price": 240, "effects": {"gather.hp_max": 5}}
+          ]
+        }
+      }
+    },
+    "score": {"reputation_multiplier": 100}
+  }
+}
