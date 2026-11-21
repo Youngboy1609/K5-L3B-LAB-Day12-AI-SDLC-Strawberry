@@ -1,0 +1,19 @@
+test_disabled_and_shallow_players_do_not_drift (test_flood_current.FloodCurrentTest.test_disabled_and_shallow_players_do_not_drift) ... ok
+test_warning_active_ticks_and_pause (test_flood_current.FloodCurrentTest.test_warning_active_ticks_and_pause) ... ok
+test_announcement_is_exposed_only_when_quan_owns_schedule (test_quan_reservations.ReservationSchedule.test_announcement_is_exposed_only_when_quan_owns_schedule) ... ok
+test_build_is_seeded_and_uses_unique_tables_with_initial_hold_state (test_quan_reservations.ReservationSchedule.test_build_is_seeded_and_uses_unique_tables_with_initial_hold_state) ... ok
+test_burnt_reserved_dish_fails_before_reservation_failure (test_quan_reservations.ReservationSchedule.test_burnt_reserved_dish_fails_before_reservation_failure) ... ok
+test_closing_fails_unarrived_orders (test_quan_reservations.ReservationSchedule.test_closing_fails_unarrived_orders) ... ok
+test_closing_failures_order_waiting_and_future_reservations_by_id (test_quan_reservations.ReservationSchedule.test_closing_failures_order_waiting_and_future_reservations_by_id) ... ok
+test_occupied_table_fails_and_penalizes_once (test_quan_reservations.ReservationSchedule.test_occupied_table_fails_and_penalizes_once) ... ok
+test_reservation_arrival_emits_before_customer_and_holds_stock_ids (test_quan_reservations.ReservationSchedule.test_reservation_arrival_emits_before_customer_and_holds_stock_ids) ... ok
+test_reservation_patience_failure_uses_one_penalty_and_replaces_customer_left (test_quan_reservations.ReservationSchedule.test_reservation_patience_failure_uses_one_penalty_and_replaces_customer_left) ... ok
+test_reserved_price_multiplier_and_success_events (test_quan_reservations.ReservationSchedule.test_reserved_price_multiplier_and_success_events) ... ok
+test_stock_failure_releases_hold_with_one_failure_event (test_quan_reservations.ReservationSchedule.test_stock_failure_releases_hold_with_one_failure_event) ... ok
+test_table_hold_begins_at_arrival_minus_configured_hold (test_quan_reservations.ReservationSchedule.test_table_hold_begins_at_arrival_minus_configured_hold) ... ok
+test_table_hold_blocks_new_ordinary_customer (test_quan_reservations.ReservationSchedule.test_table_hold_blocks_new_ordinary_customer) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.012s
+
+OK

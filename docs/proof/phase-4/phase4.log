@@ -1,0 +1,125 @@
+test_manifest_benchmark_real_thirty_seconds (test_phase4_contract.ReleaseContract.test_manifest_benchmark_real_thirty_seconds) ... FAIL
+test_manifest_soak_ten_days_repeatable (test_phase4_contract.ReleaseContract.test_manifest_soak_ten_days_repeatable) ... FAIL
+test_published_manifest_has_release_commands (test_phase4_contract.ReleaseContract.test_published_manifest_has_release_commands) ... FAIL
+test_v12_v13_jsonl_identical_for_all_modes (test_phase4_contract.ReleaseContract.test_v12_v13_jsonl_identical_for_all_modes) ... 
+  test_v12_v13_jsonl_identical_for_all_modes (test_phase4_contract.ReleaseContract.test_v12_v13_jsonl_identical_for_all_modes) (mode='gather') ... FAIL
+  test_v12_v13_jsonl_identical_for_all_modes (test_phase4_contract.ReleaseContract.test_v12_v13_jsonl_identical_for_all_modes) (mode='quan') ... FAIL
+  test_v12_v13_jsonl_identical_for_all_modes (test_phase4_contract.ReleaseContract.test_v12_v13_jsonl_identical_for_all_modes) (mode='day') ... FAIL
+test_v13_inventory_identity_and_count_rejection (test_phase4_contract.ReleaseContract.test_v13_inventory_identity_and_count_rejection) ... FAIL
+
+======================================================================
+FAIL: test_manifest_benchmark_real_thirty_seconds (test_phase4_contract.ReleaseContract.test_manifest_benchmark_real_thirty_seconds)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 117, in test_manifest_benchmark_real_thirty_seconds
+    self.assertIsInstance(command, str, "manifest thiếu bench_cmd")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not an instance of <class 'str'> : manifest thiếu bench_cmd
+
+======================================================================
+FAIL: test_manifest_soak_ten_days_repeatable (test_phase4_contract.ReleaseContract.test_manifest_soak_ten_days_repeatable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 99, in test_manifest_soak_ten_days_repeatable
+    self.assertIsInstance(command, str, "manifest thiếu soak_cmd")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None is not an instance of <class 'str'> : manifest thiếu soak_cmd
+
+======================================================================
+FAIL: test_published_manifest_has_release_commands (test_phase4_contract.ReleaseContract.test_published_manifest_has_release_commands)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 50, in test_published_manifest_has_release_commands
+    self.assertEqual(self.published["contract_version"], "1.3")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '1.2' != '1.3'
+- 1.2
+?   ^
++ 1.3
+?   ^
+
+
+======================================================================
+FAIL: test_v12_v13_jsonl_identical_for_all_modes (test_phase4_contract.ReleaseContract.test_v12_v13_jsonl_identical_for_all_modes) (mode='gather')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 69, in test_v12_v13_jsonl_identical_for_all_modes
+    self.headless(mode, version + ".jsonl", "--scenario", scenario,
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  "--inputs", controls)
+                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 46, in headless
+    self.ok(self.contract["headless_cmd"], "--mode", mode, "--seed", 42,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "--ticks", 5, "--snapshot-every", 1, "--out", self.root / out, *args)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 43, in ok
+    self.assertEqual(result.returncode, 0, result.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : đầu vào sai: tuning.gather.nodes.N5: kind phải là một trong ('bong_dien_dien', 'bong_sung')
+
+
+======================================================================
+FAIL: test_v12_v13_jsonl_identical_for_all_modes (test_phase4_contract.ReleaseContract.test_v12_v13_jsonl_identical_for_all_modes) (mode='quan')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 69, in test_v12_v13_jsonl_identical_for_all_modes
+    self.headless(mode, version + ".jsonl", "--scenario", scenario,
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  "--inputs", controls)
+                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 46, in headless
+    self.ok(self.contract["headless_cmd"], "--mode", mode, "--seed", 42,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "--ticks", 5, "--snapshot-every", 1, "--out", self.root / out, *args)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 43, in ok
+    self.assertEqual(result.returncode, 0, result.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : đầu vào sai: tuning.gather.nodes.N5: kind phải là một trong ('bong_dien_dien', 'bong_sung')
+
+
+======================================================================
+FAIL: test_v12_v13_jsonl_identical_for_all_modes (test_phase4_contract.ReleaseContract.test_v12_v13_jsonl_identical_for_all_modes) (mode='day')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 69, in test_v12_v13_jsonl_identical_for_all_modes
+    self.headless(mode, version + ".jsonl", "--scenario", scenario,
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  "--inputs", controls)
+                  ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 46, in headless
+    self.ok(self.contract["headless_cmd"], "--mode", mode, "--seed", 42,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "--ticks", 5, "--snapshot-every", 1, "--out", self.root / out, *args)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 43, in ok
+    self.assertEqual(result.returncode, 0, result.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : đầu vào sai: tuning.gather.nodes.N5: kind phải là một trong ('bong_dien_dien', 'bong_sung')
+
+
+======================================================================
+FAIL: test_v13_inventory_identity_and_count_rejection (test_phase4_contract.ReleaseContract.test_v13_inventory_identity_and_count_rejection)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 80, in test_v13_inventory_identity_and_count_rejection
+    self.headless("gather", "gather.jsonl", "--scenario", scenario,
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  "--inputs", controls, "--inventory-out", inventory)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 46, in headless
+    self.ok(self.contract["headless_cmd"], "--mode", mode, "--seed", 42,
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            "--ticks", 5, "--snapshot-every", 1, "--out", self.root / out, *args)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/quannguyen/Documents/GitHub/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tests/test_phase4_contract.py", line 43, in ok
+    self.assertEqual(result.returncode, 0, result.stderr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : đầu vào sai: tuning.gather.nodes.N5: kind phải là một trong ('bong_dien_dien', 'bong_sung')
+
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.656s
+
+FAILED (failures=7)
