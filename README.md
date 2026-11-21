@@ -30,7 +30,7 @@ python3 -m chonoi.live --mode quan --inventory kho.json
 | Esc hoặc P | Tạm dừng / chơi tiếp (máy chủ ngừng bước tick thật, kể cả giờ Shop) |
 | 1–9 (ở Shop) | Mua nâng cấp theo thứ tự trong danh sách |
 
-**Chơi cả ngày** dùng lệnh `python3 -m chonoi.live --mode day --days 5`. v1.2 giữ [số đề xuất của nhóm](docs/clarify.md#preset-v11-đề-xuất-cho-p2-01) cho các ô Ticket-02 chưa cung cấp. Màn giới thiệu, kết quả và pause đều dừng mô phỏng.
+**Chơi cả ngày** dùng lệnh `python3 -m chonoi.live --mode day --days 5`. Manifest v1.3 tiếp tục dùng luật và tuning v1.2, gồm [các số đề xuất của nhóm](docs/clarify.md#preset-v11-đề-xuất-cho-p2-01) cho các ô Ticket-02 chưa cung cấp. Màn giới thiệu, kết quả và pause đều dừng mô phỏng.
 
 **Xem thử màn hình bằng dữ liệu mẫu** (khi server đang chạy, hoặc mở thẳng file `chonoi/web/index.html`): thêm `?demo=shop`, `?demo=result`, `?demo=summary`, `?demo=pause`, `?demo=hold` (giỏ theo độ tươi) hoặc `?demo=kho` (kho quán theo độ tươi) vào địa chỉ, ví dụ http://127.0.0.1:8000/?demo=shop. Chế độ này không gửi gì lên máy chủ.
 
@@ -56,7 +56,12 @@ python3 -m chonoi.headless --mode gather --seed 42 --ticks 600 --out out.jsonl
 python3 -m chonoi.benchmark --seed 42 --duration 30 --out bench.json
 ```
 
-Kết quả `bench.json` gồm `avg_fps`, `p1_low_fps`, `frames`, `measured_s`, `load_ms`. Mục tiêu: avg ≥ 60 FPS, 1% low ≥ 30 FPS, load ≤ 10 giây. Cần một bản Chromium trên máy (nếu chưa có, làm theo hướng dẫn trong lát benchmark của nhóm).
+Kết quả `bench.json` gồm `avg_fps`, `p1_low_fps`, `frames`, `measured_s`, `load_ms`. `load_ms` đo từ khi mở trang tới frame gameplay đầu tiên. Mục tiêu: avg ≥ 60 FPS, 1% low ≥ 30 FPS, load ≤ 10 giây. Benchmark dùng Playwright và Chromium. Trong virtual environment của dự án, cài phần phụ thuộc tùy chọn và trình duyệt:
+
+```bash
+python3 -m pip install -r requirements-benchmark.txt
+python3 -m playwright install chromium
+```
 
 **Soak (Phase 4)** — lặp 10 Ngày liên tục bằng bot, kết quả mỗi ngày lấy lúc Shop đóng:
 
@@ -66,7 +71,7 @@ python3 -m chonoi.soak --seed 7 --days 10 --out soak.json
 
 Hai lượt cùng seed phải ra trùng dữ liệu gameplay (`days`, `days_completed`, `crashes`, `results` sau khi bỏ trường thời gian thực).
 
-**Tương phản cao (HUD, Phase 4):** HUD có nút bật/tắt tương phản cao (dùng được bằng bàn phím); cảnh báo thủy quái, oxy thấp và khách sắp giận vẽ bằng viền/biểu tượng ngoài màu sắc, khách sắp giận hiện bằng chữ cạnh bàn. Có ba trạng thái kiểm: trong bán kính thủy quái, oxy < 25%, khách chờ còn ≤ 10 giây.
+**Tương phản cao (HUD, Phase 4):** phím H bật/tắt tương phản cao. Cảnh báo thủy quái, oxy thấp và khách đang chờ sắp giận dùng chữ hoặc biểu tượng ngoài màu sắc; cảnh báo khách hiện khi còn ≤ 10 giây kiên nhẫn. Có ba trạng thái kiểm: trong bán kính thủy quái, oxy < 25%, khách chờ còn ≤ 10 giây.
 
 **Kho v1.2 (độ tươi, Phase 3).** File kho là mảng cá thể, ví dụ `{"items":[{"id":"I1","kind":"ca_linh","fresh":99.99167}]}`. Mỗi nguyên liệu có ID riêng và độ tươi từ 0 tới 100. Độ tươi dưới 30 là ươn, đúng 30 vẫn tươi. File kiểu đếm cũ bị từ chối với mã 2. Lệnh chạy không đổi.
 

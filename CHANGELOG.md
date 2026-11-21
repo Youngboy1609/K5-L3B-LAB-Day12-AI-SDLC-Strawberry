@@ -5,8 +5,8 @@
 
 - Manifest công bố `contract_version: "1.3"` nhưng runtime vẫn dùng luật v1.2 cho input, tuning, kho, mô phỏng và JSONL; cách so hai bản v1.2/v1.3 theo byte từ cùng seed do QA giữ. (nhánh `phase4/contract-release`, `fe7f39f`)
 - CLI mới `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`: một `DaySession` duy nhất cho cả lượt, lặp D1–D5 đến 10 ngày, thu `day, earned, reputation, score` lúc `shop_end`, hai lượt cùng seed trùng dữ liệu gameplay. (`a623026` trên `phase4/soak-day`, đã ghép `adaaf3a`)
-- CLI benchmark FPS cảnh Gather (nhánh `phase4/gather-benchmark`, ghép cùng Phase 4); lệnh xem [README](README.md).
-- HUD tương phản cao và ba cảnh báo (lát `phase4/accessible-hud`); README mô tả theo bảng hợp đồng Phase 4, cần khớp lại tên điều khiển khi nhánh ghép.
+- CLI benchmark FPS cảnh Gather dùng Playwright và Chromium headless (lát `phase4/gather-benchmark`); lệnh và phần phụ thuộc tùy chọn xem [README](README.md).
+- HUD có phím H bật/tắt tương phản cao, với cảnh báo có chữ/biểu tượng cho thủy quái gần, oxy thấp và khách đang chờ còn tối đa 10 giây (lát `phase4/accessible-hud`).
 - README, `CREDITS.md` và [`docs/release/v1.0.0.md`](docs/release/v1.0.0.md) soạn cho Release v1.0.0 (lát `phase4/package-docs`).
 
 ### Phase 3 · Kho cá thể v1.2
