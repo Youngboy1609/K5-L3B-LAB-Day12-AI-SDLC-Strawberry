@@ -42,6 +42,32 @@ python3 -m chonoi.live --mode quan --inventory kho.json
 PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
 ```
 
+**Chạy headless** (không cửa sổ, ra JSONL cùng seed phải trùng byte):
+
+```bash
+python3 -m chonoi.headless --mode gather --seed 42 --ticks 600 --out out.jsonl
+```
+
+**Yêu cầu:** Python 3 (chỉ thư viện chuẩn). Nhóm kiểm trên macOS với CPython 3.15; trình duyệt bất kỳ hiện đại (Chrome/Edge/Safari/Firefox).
+
+**Benchmark (Phase 4)** — đo FPS cảnh Gather thật, tách biệt khỏi đường chạy game: server cổng tạm + Chromium headless, seed 42, viewport 1280×720, đo 30 giây sau khi vào gameplay.
+
+```bash
+python3 -m chonoi.benchmark --seed 42 --duration 30 --out bench.json
+```
+
+Kết quả `bench.json` gồm `avg_fps`, `p1_low_fps`, `frames`, `measured_s`, `load_ms`. Mục tiêu: avg ≥ 60 FPS, 1% low ≥ 30 FPS, load ≤ 10 giây. Cần một bản Chromium trên máy (nếu chưa có, làm theo hướng dẫn trong lát benchmark của nhóm).
+
+**Soak (Phase 4)** — lặp 10 Ngày liên tục bằng bot, kết quả mỗi ngày lấy lúc Shop đóng:
+
+```bash
+python3 -m chonoi.soak --seed 7 --days 10 --out soak.json
+```
+
+Hai lượt cùng seed phải ra trùng dữ liệu gameplay (`days`, `days_completed`, `crashes`, `results` sau khi bỏ trường thời gian thực).
+
+**Tương phản cao (HUD, Phase 4):** HUD có nút bật/tắt tương phản cao (dùng được bằng bàn phím); cảnh báo thủy quái, oxy thấp và khách sắp giận vẽ bằng viền/biểu tượng ngoài màu sắc, khách sắp giận hiện bằng chữ cạnh bàn. Có ba trạng thái kiểm: trong bán kính thủy quái, oxy < 25%, khách chờ còn ≤ 10 giây.
+
 **Kho v1.2 (độ tươi, Phase 3).** File kho là mảng cá thể, ví dụ `{"items":[{"id":"I1","kind":"ca_linh","fresh":99.99167}]}`. Mỗi nguyên liệu có ID riêng và độ tươi từ 0 tới 100. Độ tươi dưới 30 là ươn, đúng 30 vẫn tươi. File kiểu đếm cũ bị từ chối với mã 2. Lệnh chạy không đổi.
 
 ```bash
