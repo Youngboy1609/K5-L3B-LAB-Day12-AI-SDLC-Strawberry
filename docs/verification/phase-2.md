@@ -42,9 +42,9 @@ buy trước shop_done; đủ/thiếu tiền, max/unsupported; active_upgrades �
 Shop đóng sau 600 tick hoạt động; ngất mở quán rỗng; D1–D5; cá/quái/recoil/LIFO;
 nhiều đơn giữ kho và no_dish. Chưa có test thực thi cho các mục trong đoạn này.
 
-## Kiểm lại sau ghép main 718cf26
+## Kiểm lại sau đồng bộ main 9e0572c
 
-[Log tích hợp](../proof/phase-2/merge-main-suite.txt): 99/100 test đạt; một lỗi
-smoke day vì manifest vẫn là v1.0. CLI đã nhận --days. Team check đạt 6 thành viên.
-Giải quyết xung đột nhật ký AI bằng cách giữ các dòng của cả hai nhánh; không sửa gameplay
-hoặc kỳ vọng test. Các kết quả 79/79 và 80/81 ở trên là lịch sử trước tích hợp.
+[Log mới](../proof/phase-2/merge-main-final-suite.txt): **100/100 test đạt**.
+Giữ preset smoke v1.1 được cập nhật đồng thời trên remote; không thay gameplay.
+Log merge-main-suite.txt (99/100) là lượt trước khi nhận bản sửa smoke này.
+PR #10 đã được tích hợp vào main tại 9e0572c.
