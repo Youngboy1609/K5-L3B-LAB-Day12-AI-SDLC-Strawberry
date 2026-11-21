@@ -245,11 +245,9 @@ class QuanSim:
                     continue
                 selection = self._select_items(self.menu[customer["dish_id"]]["recipe"], reserved_ids)
                 if selection is None:
-                    customer["order_status"] = "unfulfillable"
-                    customer["reserved"] = []
-                else:
-                    customer["reserved"] = [item["id"] for item in selection]
-                    reserved_ids.update(customer["reserved"])
+                    raise BadInput(f"customers.{customer['id']}: không đủ nguyên liệu tươi để tự giữ công thức")
+                customer["reserved"] = [item["id"] for item in selection]
+                reserved_ids.update(customer["reserved"])
 
         payloads = []
         for stove in self.stoves:
@@ -317,19 +315,21 @@ class QuanSim:
         events = []
         self.phase_tick += 1
         self.time_left_ticks = max(0, self.time_left_ticks - 1)
-        if self.item_stock:
-            fresh_ids = {item["id"] for item in self.stock if item["fresh"] >= self.spoiled_below}
-            spoiled = decay_items(self.stock, self.fresh_decay, self.spoiled_below)
-            for item in spoiled:
-                if item["id"] in fresh_ids:
-                    events.append(("spoiled", {"item_id": item["id"], "kind": item["kind"], "location": "stock"}))
-            self._refresh_reservations(events)
         # Customers present at tick start lose patience/eat time; arrivals below start next tick.
         for customer in self.customers:
             if customer.get("state") == "waiting" and customer.get("patience_ticks_left", 0) > 0:
                 customer["patience_ticks_left"] -= 1
             elif customer.get("state") == "eating" and customer.get("eat_ticks_left", 0) > 0:
                 customer["eat_ticks_left"] -= 1
+        if self.item_stock:
+            fresh_ids = {item["id"] for item in self.stock if item["fresh"] >= self.spoiled_below}
+            spoiled = decay_items(self.stock, self.fresh_decay, self.spoiled_below)
+            for item in self.stock:
+                item["fresh"] = max(Fraction(0), item["fresh"])
+            for item in spoiled:
+                if item["id"] in fresh_ids:
+                    events.append(("spoiled", {"item_id": item["id"], "kind": item["kind"], "location": "stock"}))
+            self._refresh_reservations(events)
         advance_stoves(self, events)
         self._move(inp)
         if inp.pressed("interact"):

@@ -100,6 +100,18 @@ class QuanFreshness(unittest.TestCase):
         self.assertEqual(sim.customers[1]["reserved"], ["I2", "I3"])
         self.assertEqual(sim.customers[0]["reserved"], ["I4", "I1"])
 
+    def test_missing_reservation_with_insufficient_fresh_stock_is_invalid_fixture(self):
+        first = customer([])
+        first.pop("reserved")
+        with self.assertRaises(BadInput):
+            sim_for([item("I1")], [first])
+
+    def test_already_spoiled_stock_clamps_at_zero_without_repeating_event(self):
+        sim = sim_for([item("I1", fresh=0)])
+        self.assertEqual(sim.step(IDLE), [])
+        self.assertEqual(sim.stock[0]["fresh"], Fraction(0))
+        self.assertEqual(sim.step(IDLE), [])
+
 
 if __name__ == "__main__":
     unittest.main()
