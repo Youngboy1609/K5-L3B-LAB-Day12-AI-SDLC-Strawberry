@@ -104,8 +104,9 @@ def benchmark(seed, duration, channel=None):
                     gatherBenchmark.duration = duration;
                 }""", duration * 1000)
                 page.locator('button[data-act="play"]').click()
-                page.wait_for_function("gatherBenchmark.frames.length > 0")
-                page.wait_for_function("gatherBenchmark.stopped", timeout=duration * 1000 + START_TIMEOUT_MS)
+                page.wait_for_function("gatherBenchmark.frames.length > 0", polling=100)
+                page.wait_for_function("gatherBenchmark.stopped", polling=100,
+                                       timeout=duration * 1000 + START_TIMEOUT_MS)
                 samples = page.evaluate("({frames: gatherBenchmark.frames, error: gatherBenchmark.error})")
                 if samples.get("error"):
                     raise RuntimeError(samples["error"])
