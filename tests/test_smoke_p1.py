@@ -15,9 +15,13 @@ def last_pos(rows):
     return snapshots(rows)[-1]["player"]["pos"]
 
 
-def tuning_gather():
+def manifest():
     with open("game.contract.json", encoding="utf-8") as f:
-        return json.load(f)["tuning"]["gather"]
+        return json.load(f)
+
+
+def tuning_gather():
+    return manifest()["tuning"]["gather"]
 
 
 class Contract(unittest.TestCase):
@@ -62,15 +66,17 @@ class Contract(unittest.TestCase):
             self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "10", "--inputs", bad, "--out", out)[0], 2)
             self.assertFalse(os.path.exists(out), "lỗi đầu vào phải thoát TRƯỚC khi ghi đầu ra")
             self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "-1", "--out", out)[0], 2)
-            for button in ("jump", "attack"):  # nút lạ / của phase sau
+            buttons = ("jump", "attack") if manifest()["contract_version"] == "1.0" else ("jump",)
+            for button in buttons:
                 unk = write_json(w.path("unk.json"), frames({"tick": 0, button: True}))
                 self.assertEqual(run_headless("--mode", "gather", "--seed", "1", "--ticks", "10", "--inputs", unk, "--out", out)[0], 2, button)
             self.assertFalse(os.path.exists(out))
 
-    def test_con_03_old_and_future_modes_rejected(self):
+    def test_con_03_modes_outside_current_contract_rejected(self):
         with Workdir() as w:
             out = w.path("o.jsonl")
-            for mode in ("river", "day"):
+            modes = ("river", "day") if manifest()["contract_version"] == "1.0" else ("river",)
+            for mode in modes:
                 self.assertEqual(run_headless("--mode", mode, "--seed", "1", "--ticks", "0", "--out", out)[0], 2, mode)
             self.assertFalse(os.path.exists(out))
             old = write_json(w.path("old.json"), {"river": {"hold": []}})

@@ -213,6 +213,8 @@ function resultRows(d) {
   if (num(d.shift_earned)) rows.push(["Kiếm được ca này", d.shift_earned + "k"]);
   const rep = num(d.reputation) ? d.reputation : (snap && num(snap.reputation) ? snap.reputation : null);
   if (rep !== null) rows.push(["Uy tín", rep.toFixed(1)]);
+  const delta = snap?.shift_reputation_delta;
+  if (num(delta)) rows.push(["Thay đổi uy tín", (delta > 0 ? "+" : "") + delta.toFixed(1)]);
   if (snap && num(snap.score)) rows.push(["Điểm", snap.score]);
   const served = pickNum(d, ["served", "served_count", "customers_served"]);
   const left = pickNum(d, ["left", "left_count", "customers_left"]);
@@ -234,6 +236,12 @@ function summaryRows() {
   if (num(snap.earned)) rows.push(["Tổng kiếm được", snap.earned + "k"]);
   if (num(snap.reputation)) rows.push(["Uy tín", snap.reputation.toFixed(1)]);
   if (num(snap.score)) rows.push(["Điểm", snap.score]);
+  const dishes = Object.entries(snap.served_dishes || {});
+  const most = Math.max(0, ...dishes.map(([, count]) => count));
+  if (most > 0) {
+    const names = dishes.filter(([, count]) => count === most).map(([id]) => dishName(id)).sort();
+    rows.push(["Món bán chạy", names.join(" · ") + " (" + most + " suất)"]);
+  } else rows.push(["Món bán chạy", "Chưa bán món nào"]);
   return rows;
 }
 // ---------- Shop (mode day) ----------
@@ -536,6 +544,22 @@ function drawGather(w, h) {
   const meta = snap.meta || {};
   const b = meta.bounds || { x: [0, 100], d: [0, 30] };
   const X = b.x[1], D = b.d[1], SKY = 6;
+  const p = snap.player;
+  const hasPos = p && Array.isArray(p.pos) && num(p.pos[0]) && num(p.pos[1]);
+  const dp = meta.dock_pos || [2, 0], dr = meta.dock_radius || 3;
+  const monsters = snap.monsters || [];
+  const near = (pos, range) => hasPos && Math.hypot(pos[0] - p.pos[0], pos[1] - p.pos[1]) <= range;
+  const danger = monsters.some((m) => near(m.pos, snap.monster_warning_radius));
+  const hasOxy = p && num(p.oxygen_ticks) && num(p.oxygen_max_ticks) && p.oxygen_max_ticks > 0;
+  const lowOxy = hasOxy && p.oxygen_ticks < p.oxygen_max_ticks * 0.25;
+  const notices = [];
+  if (danger) notices.push("Thủy quái!");
+  if (lowOxy) notices.push(p.oxygen_ticks === 0 ? "Hết hơi!" : "Sắp hết oxy — lên thở!");
+  if (near(dp, dr)) notices.push("E · Cập bến");
+  else if (p?.at_surface && (snap.nodes || []).some((n) => n.ready && near(n.pos, meta.interact_radius))) {
+    notices.push("E · Hái nguyên liệu");
+  }
+  const statusLines = wrapParts(notices, " · ", w - 28, HUD, true);
   // Đáy màn hình (tính từ dưới lên): dòng phím (tự xuống dòng) → dòng giỏ (tự xuống dòng) → hàng ô giỏ.
   const help = helpLines(w, "WASD/mũi tên bơi · E hái / cập bến · Space bắt cá · R chơi lại · L nhật ký");
   const hold = Array.isArray(snap.hold) ? snap.hold : [];
@@ -558,7 +582,7 @@ function drawGather(w, h) {
   const holdBase = helpTop - 8 - (holdLines.length - 1) * LH;           // baseline dòng giỏ đầu tiên
   const sz = hasHold ? Math.max(10, Math.min(30, (w - 28) / cap - 4)) : 0;
   const slotY = holdBase - 18 - 8 - sz;
-  const top = 78, bottom = h - (hasHold ? slotY : helpTop) + 8;          // trên: 2 hàng HUD
+  const top = 78 + statusLines.length * LH, bottom = h - (hasHold ? slotY : helpTop) + 8;
   const s = Math.max(1, Math.min((w - 20) / (X + 4), (h - top - bottom) / (D + SKY + 1)));
   const ox = (w - s * (X + 4)) / 2 + 2 * s, oy = top + SKY * s;
   const sx = (x) => ox + x * s, sy = (d) => oy + d * s;
@@ -574,7 +598,6 @@ function drawGather(w, h) {
     text(d + " m", sx(0) + 4, sy(d) - 3, { color: "rgba(255,255,255,.45)" });
   }
   // bến
-  const dp = meta.dock_pos || [2, 0], dr = meta.dock_radius || 3;
   ctx.fillStyle = "#8d6e4b"; ctx.fillRect(sx(dp[0] - 1.5), sy(-0.7), 3 * s, 0.9 * s);
   ctx.fillStyle = "#b9503a"; ctx.beginPath(); ctx.moveTo(sx(dp[0] - 1.8), sy(-0.7)); ctx.lineTo(sx(dp[0]), sy(-2.4)); ctx.lineTo(sx(dp[0] + 1.8), sy(-0.7)); ctx.fill();
   ctx.strokeStyle = "rgba(255,230,150,.7)"; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(sx(dp[0]), sy(dp[1]), dr * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
@@ -597,9 +620,13 @@ function drawGather(w, h) {
     ctx.beginPath(); ctx.moveTo(-0.8 * s, 0); ctx.lineTo(-1.4 * s, -0.4 * s); ctx.lineTo(-1.4 * s, 0.4 * s); ctx.fill();
     ctx.restore();
   });
+  for (const monster of monsters) {
+    const mx = sx(monster.pos[0]), my = sy(monster.pos[1]);
+    ctx.fillStyle = "#7bbf8a";
+    ctx.fillRect(mx - 1.4 * s, my - 0.3 * s, 2.8 * s, 0.6 * s);
+    text(monster.id, mx, my - 0.45 * s - 3, { align: "center", color: "#d6bcff", bold: true });
+  }
   // người chơi
-  const p = snap.player;
-  const hasPos = p && Array.isArray(p.pos) && num(p.pos[0]) && num(p.pos[1]);
   if (hasPos) {
     const px = sx(p.pos[0]), py = sy(p.pos[1]);
     const underwater = p.at_surface === undefined ? p.pos[1] > 0.5 : !p.at_surface;
@@ -613,9 +640,9 @@ function drawGather(w, h) {
   }
   // HUD hàng 1: giờ · oxy · Máu · độ sâu (mỗi mục đặt sau mục trước, đo bề ngang để không đè)
   const GAP = 20;
-  let x = 14 + text("⏱ " + fmtTime(snap.time_left_ticks), 14, 34, { size: 24 }) + GAP;
-  const hasOxy = p && num(p.oxygen_ticks) && num(p.oxygen_max_ticks) && p.oxygen_max_ticks > 0;
-  const lowOxy = hasOxy && p.oxygen_ticks < p.oxygen_max_ticks * 0.25;
+  const late = num(snap.time_left_ticks) && snap.time_left_ticks <= 30 * 60;
+  let x = 14 + text("⏱ " + fmtTime(snap.time_left_ticks), 14, 34,
+                    { size: 24, color: late ? "#ff6b6b" : "#e8eef2" }) + GAP;
   if (hasOxy) {
     bar(x, 12, 220, 28, p.oxygen_ticks / p.oxygen_max_ticks, lowOxy ? "#ef5350" : "#2b9fd8", "Oxy " + Math.ceil(p.oxygen_ticks / 60) + "s");
     x += 220 + GAP;
@@ -631,11 +658,18 @@ function drawGather(w, h) {
   setFont(HUD);
   const depthRow1 = depthTxt && x + ctx.measureText(depthTxt).width <= w - 14;
   if (depthRow1) text(depthTxt, x, 33, { color: "#cfe8f5" });
-  // HUD hàng 2: (độ sâu) · cảnh báo oxy · hồi bắt cá
+  // HUD hàng 2: (độ sâu) · hồi bắt cá
   let x2 = 14;
   if (depthTxt && !depthRow1) x2 += text(depthTxt, x2, 66, { color: "#cfe8f5" }) + GAP;
-  if (lowOxy) x2 += text("Sắp hết oxy — lên thở!", x2, 66, { size: 20, bold: true, color: "#ff6b6b" }) + GAP;
+
   if (p && num(p.catch_cd_ticks) && p.catch_cd_ticks > 0) text("Hồi bắt cá " + (p.catch_cd_ticks / 60).toFixed(1) + "s", x2, 66, { color: "#9fb3c0" });
+  const statusColor = danger ? "#d6bcff" : lowOxy ? "#ff6b6b" : "#cfe8f5";
+  statusLines.forEach((line, i) => text(line, 14, 90 + i * LH, { color: statusColor, bold: true }));
+  if (danger) {
+    ctx.strokeStyle = "#c394ff";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, w - 4, h - 4);
+  }
   // giỏ (khoang) dưới — số trong giỏ: ưu tiên hold_count của snapshot, không có thì đếm mảng hold.
   if (hasHold) {
     for (let i = 0; i < cap; i++) {
@@ -650,7 +684,10 @@ function drawGather(w, h) {
 }
 
 // ----- cảnh QUÁN: nhìn từ trên xuống, x sang phải, z lên (bắc) -----
-const DISH_NAME = { ca_loc_nuong_trui: "Cá lóc nướng trui", goi_bong_sung: "Gỏi bông súng", lau_ca_linh_dien_dien: "Lẩu cá linh bông điên điển" };
+const DISH_NAME = {
+  ca_loc_nuong_trui: "Cá lóc nướng trui", goi_bong_sung: "Gỏi bông súng", lau_ca_linh_dien_dien: "Lẩu cá linh bông điên điển",
+  ca_keo_kho_keo_neo: "Cá kèo kho kèo nèo", ca_keo_chien: "Cá kèo chiên", goi_keo_neo: "Gỏi kèo nèo"
+};
 // Snapshot bỏ các loại có tồn 0, nên HUD tự liệt kê 4 mã nguyên liệu hợp lệ của kho (chỉ để hiển thị).
 const QUAN_KINDS = ["ca_loc", "ca_linh", "bong_dien_dien", "bong_sung"];
 // Theo c.state của snapshot thật: "waiting" | "eating" (order_status là trường riêng). Trạng thái lạ thì hiện nguyên giá trị.
@@ -750,7 +787,8 @@ function drawQuan(w, h) {
   const GAP = 24;
   const x = 14 + text("⏱ " + fmtTime(snap.time_left_ticks), 14, 34, { size: 24 }) + GAP;
   const stats = [];
-  if (num(snap.money)) stats.push(`Tiền ${snap.money}k`);
+  const shiftEarned = snap.shift?.shift_earned ?? snap.money;
+  if (num(shiftEarned)) stats.push("Tiền ca " + shiftEarned + "k");
   if (num(snap.reputation)) stats.push(`uy tín ${snap.reputation.toFixed(1)}`);
   if (num(snap.score)) stats.push(`điểm ${snap.score}`);
   // Tiền · uy tín · điểm: hết chỗ thì xuống dòng giữa các mục (không cắt "…"), các dòng sau thẳng cột với dòng đầu.
@@ -794,7 +832,10 @@ function drawQuan(w, h) {
     if (c) {
       const cx = sx(tb.pos[0]), cy = sy(tb.pos[1]) - 1.5 * s;
       ctx.fillStyle = c.state === "eating" ? "#7bc67b" : "#f4b6c2"; ctx.beginPath(); ctx.arc(cx, cy, 0.55 * s, 0, Math.PI * 2); ctx.fill();
-      if (num(c.patience_ticks_left)) bar(cx - 0.8 * s, cy + 0.65 * s, 1.6 * s, 5, c.patience_ticks_left / patMax, "#e57373");
+      if (num(c.patience_ticks_left) && c.state === "waiting") {
+        const fraction = c.patience_ticks_left / patMax;
+        bar(cx - 0.8 * s, cy + 0.65 * s, 1.6 * s, 5, fraction, fraction < 0.25 ? "#e57373" : "#ffd180");
+      }
     }
   });
   // người chơi

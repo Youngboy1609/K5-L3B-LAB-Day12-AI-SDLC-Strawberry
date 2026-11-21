@@ -100,5 +100,37 @@ class LiveDayTest(unittest.TestCase):
                     self.assertEqual(json.loads(game.state_json())["stock"], stock)
 
 
+    def test_day_report_keeps_reputation_delta_and_dishes_after_shop(self):
+        tuning = _tuning()
+        table = tuning["quan"]["tables"][0]
+        dish = {"order_id": "C1", "dish_id": "goi_bong_sung",
+                "base_price": tuning["menu"]["goi_bong_sung"]["price"]}
+        scenario = {
+            "gather": {"player": {"pos": tuning["gather"]["dock_pos"]}},
+            "quan": {"player": {"pos": table["pos"]}, "time_left_ticks": 2, "hand": dish,
+                     "customers": [{"id": "C1", "table_id": table["id"],
+                                    "dish_id": dish["dish_id"], "order_status": "assigned"}]},
+        }
+        game = LiveGame("day", tuning, scenario, 42)
+        game.set_input({"interact": True})
+        game._tick_once()
+        game.set_input({"interact": False})
+        game._tick_once()
+        game.set_input({"interact": True})
+        game._tick_once()
+        state = json.loads(game.state_json())
+        self.assertEqual(state["phase"], "shop")
+        self.assertAlmostEqual(state["shift_reputation_delta"], tuning["quan"]["tip_reputation"])
+        self.assertEqual(state["served_dishes"], {dish["dish_id"]: 1})
+
+        game.set_input({"shop_done": True})
+        game._tick_once()
+        state = json.loads(game.state_json())
+        self.assertTrue(state["finished"])
+        self.assertEqual(state["served_dishes"], {dish["dish_id"]: 1})
+        game.restart()
+        self.assertEqual(json.loads(game.state_json())["served_dishes"], {})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 """Phase 2 lát 4 (quan): menu theo kế hoạch Ngày, nhiều bếp/bàn, stats bàn giao, báo cáo cuối ca.
 
-Bố trí 2 bếp / 4 bàn / 6 món dựng trong test (KIỂM CẤU TRÚC) cho tới khi preset v1.1 có số chuẩn (P2-01).
+Bố trí 2 bếp / 4 bàn / 6 món là fixture riêng để kiểm luật, độc lập với preset trong manifest.
 """
 
 import copy
@@ -23,12 +23,12 @@ def tuning_p2():
     q["stoves"] = [{"id": "B1", "pos": [2, 8]}, {"id": "B2", "pos": [5, 8]}]
     q["tables"] = [{"id": "T1", "pos": [9, 2]}, {"id": "T2", "pos": [12, 2]},
                    {"id": "T3", "pos": [9, 6]}, {"id": "T4", "pos": [12, 6]}]
+    t["menu"] = {name: t["menu"][name] for name in ("ca_loc_nuong_trui", "goi_bong_sung")}
     t["menu"].update({
         "canh_chua_ca_keo": {"recipe": {"ca_keo": 1, "bong_dien_dien": 1}, "cook_s": 8, "price": 80},
         "keo_neo_nuong": {"recipe": {"keo_neo": 1}, "cook_s": 5, "price": 50},
         "lau_ca_keo": {"recipe": {"ca_keo": 2}, "cook_s": 9, "price": 100},
     })
-    t["menu"].pop("lau_ca_linh_dien_dien")
     t["menu"]["ca_linh_kho"] = {"recipe": {"ca_linh": 2}, "cook_s": 6, "price": 70}
     return t
 

@@ -24,7 +24,7 @@ class Phase2Fish(unittest.TestCase):
         }
         self.fish = {"id": "F7", "kind": "ca_keo", "pos": [20, 5], "age_ticks": 12}
 
-    def run_mode(self, mode, scenario, *, ticks=0, inputs=None, extra=(), expect=0):
+    def run_mode(self, mode, scenario, *, ticks=0, inputs=None, extra=(), expect=0, diagnostic=None):
         path = write_json(self.work.path("scenario.json"), {mode: scenario} if mode != "day" else scenario)
         output = self.work.path("output.jsonl")
         contract_path = write_json(self.work.path("contract.json"), self.contract)
@@ -36,13 +36,16 @@ class Phase2Fish(unittest.TestCase):
         with patch("chonoi.headless.load_contract", side_effect=lambda: load_contract(contract_path)):
             with redirect_stderr(errors):
                 self.assertEqual(main(args), expect, errors.getvalue())
+        if diagnostic:
+            self.assertIn(diagnostic, errors.getvalue())
         return read_jsonl(output) if expect == 0 else []
 
     def test_v1_inventory_rejects_new_ingredients(self):
         self.contract["contract_version"] = "1.0"
-        self.run_mode("quan", {"stock": {"ca_keo": 1}}, expect=2)
+        self.gather["nodes"] = [node for node in self.gather["nodes"] if node["kind"] != "keo_neo"]
+        self.run_mode("quan", {"stock": {"ca_keo": 1}}, expect=2, diagnostic="nguyên liệu lạ: ca_keo")
         stock_file = write_json(self.work.path("inventory.json"), {"items": {"keo_neo": 2}})
-        self.run_mode("quan", {}, extra=["--inventory", stock_file], expect=2)
+        self.run_mode("quan", {}, extra=["--inventory", stock_file], expect=2, diagnostic="nguyên liệu lạ: keo_neo")
 
     def test_v11_quan_reads_new_ingredients_from_file(self):
         stock = {"ca_keo": 1, "keo_neo": 2}
@@ -76,7 +79,8 @@ class Phase2Fish(unittest.TestCase):
 
     def test_day_hands_off_new_ingredients_and_validates_reservation(self):
         tuning = self.contract["tuning"]
-        self.gather["nodes"].append({"id": "N5", "kind": "keo_neo", "pos": [24, 0]})
+        if not any(node["kind"] == "keo_neo" for node in self.gather["nodes"]):
+            self.gather["nodes"].append({"id": "N5", "kind": "keo_neo", "pos": [24, 0]})
         stock = {"ca_keo": 1, "keo_neo": 1}
         tuning["menu"]["ca_keo_test"] = {"recipe": stock, "price": 40, "cook_s": 4}
         tuning["day"] = {"day_plans": {"1": {"dishes": {"ca_keo_test": 1}}}, "shop_ticks": 600,

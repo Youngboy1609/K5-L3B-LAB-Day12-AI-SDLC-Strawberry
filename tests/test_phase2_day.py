@@ -8,7 +8,7 @@ from unittest.mock import patch
 from chonoi.contract import load_contract
 from chonoi.headless import main
 
-from helpers import ROOT, Workdir, events, read_jsonl, run_headless, snapshots
+from helpers import ROOT, Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
 
 FIXTURES = Path(ROOT) / "docs/proof/phase-2/fixtures"
 
@@ -60,6 +60,55 @@ class DaySmoke(unittest.TestCase):
             self.assertEqual(rows[-1]["ticks"], 3)
             self.assertEqual(rows[-1]["days_completed"], 1)
             self.assertEqual(rows[-1]["reason"], "days_complete")
+
+
+    def test_v11_preset_finishes_five_days_and_applies_upgrades(self):
+        tuning = load_contract()["tuning"]
+        recipes = tuning["menu"]
+        plans = tuning["day"]["day_plans"]
+        self.assertEqual(len(recipes), 6)
+        self.assertEqual(len(tuning["quan"]["stoves"]), 2)
+        self.assertEqual(len(tuning["quan"]["tables"]), 4)
+        self.assertEqual(set(plans), {"1", "2", "3", "4", "5"})
+        self.assertEqual(
+            {kind for dish in recipes.values() for kind in dish["recipe"]},
+            {"ca_loc", "ca_linh", "ca_keo", "bong_dien_dien", "bong_sung", "keo_neo"},
+        )
+        controls = [
+            {"tick": 0, "interact": True}, {"tick": 1, "interact": False},
+            {"tick": 2, "buy": "oxygen"}, {"tick": 3, "buy": "hp", "shop_done": True},
+        ]
+        for k in (4, 7, 10, 13):
+            controls.extend([
+                {"tick": k, "interact": True, "shop_done": False},
+                {"tick": k + 1, "interact": False}, {"tick": k + 2, "shop_done": True},
+            ])
+        with Workdir() as w:
+            inp = write_json(w.path("all-days.json"), frames(*controls))
+            out = w.path("day.jsonl")
+            code, err = run_headless(
+                "--mode", "day", "--seed", "42", "--days", "5", "--ticks", "16",
+                "--snapshot-every", "1", "--scenario", str(FIXTURES / "p2-day-smoke.json"),
+                "--inputs", inp, "--out", out)
+            self.assertEqual(code, 0, err)
+            rows = read_jsonl(out)
+        announced = events(rows, "day_plan")
+        self.assertEqual([row["day"] for row in announced], list(range(1, 6)))
+        self.assertEqual(announced[0]["data"]["ingredients"], {"ca_loc": 3, "bong_sung": 6})
+        for row in announced:
+            with self.subTest(day=row["day"]):
+                self.assertEqual(row["data"]["dishes"], plans[str(row["day"])]["dishes"])
+                self.assertLessEqual(sum(row["data"]["ingredients"].values()), tuning["gather"]["hold_capacity"])
+        by_tick = {snap["tick"]: snap for snap in snapshots(rows)}
+        self.assertEqual([len(by_tick[row["tick"]]["monsters"]) for row in announced], [1, 1, 2, 2, 2])
+        self.assertEqual(by_tick[3]["active_upgrades"], {})
+        self.assertEqual(by_tick[3]["upgrades"], {"oxygen": 1})
+        self.assertEqual((by_tick[4]["money"], by_tick[4]["earned"]), (0, 200))
+        self.assertEqual(by_tick[4]["active_upgrades"], {"oxygen": 1, "hp": 1})
+        self.assertEqual((by_tick[4]["player"]["hp"], by_tick[4]["player"]["oxygen_ticks"]), (4, 2700))
+        self.assertEqual([row["data"]["upgrade"] for row in events(rows, "buy_success")], ["oxygen", "hp"])
+        self.assertEqual(len(events(rows, "shop_end")), 5)
+        self.assertEqual((rows[-1]["days_completed"], rows[-1]["reason"]), (5, "days_complete"))
 
 
 if __name__ == "__main__":

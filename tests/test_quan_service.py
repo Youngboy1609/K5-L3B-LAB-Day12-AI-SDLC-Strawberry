@@ -132,7 +132,8 @@ class Target(unittest.TestCase):
         self.assertEqual(qs._pick_target(sim)[0], "stove")
 
     def test_out_of_radius_does_nothing(self):
-        sim = make_sim(customers=[customer()])
+        tuning = {**TUNING, "quan": {**Q, "stoves": [STOVE], "tables": [TABLE]}}
+        sim = make_sim(customers=[customer()], tuning=tuning)
         sim.pos = [STOVE["pos"][0] + Q["interact_radius"] + 0.01, STOVE["pos"][1]]
         self.assertEqual(tick(sim, interact=True)[0], [])
 

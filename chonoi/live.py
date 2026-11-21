@@ -58,6 +58,8 @@ class LiveGame:
             self.session = DaySession(tuning, scenario, seed, self.days)
             self.inputs = LiveInputs(buttons=BUTTONS_V11, allow_buy=True)
             self.events = self.session._wrap(0, self.session.initial_events)  # day_start, day_plan, phase_start
+            self.served_dishes = {}
+            self.shift_start_reputation = self.session.sim.reputation
         else:
             self.session = Session(*self._args, contract_version=self.contract_version)
             self.inputs = LiveInputs()
@@ -100,6 +102,12 @@ class LiveGame:
             return
         for row in s.step(self.inputs.advance()):
             self.events.append(row)
+            if self.mode == "day":
+                if row["name"] == "phase_start" and row["phase"] == "quan":
+                    self.shift_start_reputation = s.sim.reputation
+                elif row["name"] == "served":
+                    dish_id = row["data"]["dish_id"]
+                    self.served_dishes[dish_id] = self.served_dishes.get(dish_id, 0) + 1
         del self.events[:-RECENT_EVENTS]
         if s.done and not self._saved:
             self._saved = True
@@ -117,10 +125,15 @@ class LiveGame:
                 # Client vẽ theo pha hiện tại; bảng nâng cấp (giá, cấp tối đa) cho màn Shop nằm ở day_meta.
                 snap["meta"] = self.tuning.get(snap.get("phase"), {}) if snap.get("phase") in ("gather", "quan") else {}
                 snap["day_meta"] = self.tuning.get("day", {})
+                snap["shift_reputation_delta"] = round(snap["reputation"] - self.shift_start_reputation, 9)
+                snap["served_dishes"] = self.served_dishes
                 if snap["phase"] == "quan":
                     snap["cookable_dishes"] = self.session.sim.phase_sim.cookable_dishes()
             else:
                 snap["meta"] = self.tuning[self.mode]
+            if snap["phase"] == "gather" and "monsters" in snap:
+                gather = self.session.sim.phase_sim if self.mode == "day" else self.session.sim
+                snap["monster_warning_radius"] = gather.monster_rules["detect_radius"]
             snap["events"] = list(self.events)
             snap["finished"] = self.session.done
             snap["reason"] = self.session.sim.reason if self.session.done else None
