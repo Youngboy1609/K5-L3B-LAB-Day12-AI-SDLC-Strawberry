@@ -11,6 +11,7 @@ import json
 import os
 import tempfile
 import unittest
+from decimal import Decimal
 from fractions import Fraction
 from unittest import mock
 
@@ -27,8 +28,9 @@ from chonoi.inventory import (
     validate_item_list,
     write_inventory,
 )
+from chonoi.jsonl import dumps
 
-GATHER_HAO = Fraction(1, 120)  # 1 tick Gather theo smoke phút 20: 100 -> 99.99167
+GATHER_HAO = Fraction(1, 120)  # 1 tick Gather theo smoke phút 20
 QUAN_HAO = Fraction(1, 240)  # 1 tick Quán: bốn tick vẫn tươi, tick kế tiếp ươn
 
 
@@ -45,6 +47,29 @@ class BaseV12(unittest.TestCase):
 
 
 class ValidItemFiles(BaseV12):
+    def test_file_preserves_both_sides_of_spoil_threshold(self):
+        literals = ("29.99999999999999999", "30.00000000000000001")
+        p = self.path("threshold.json", '{"items":[' + ",".join(
+            f'{{"id":"I{i}","kind":"ca_linh","fresh":{literal}}}'
+            for i, literal in enumerate(literals, start=1)
+        ) + "]}")
+        items = read_inventory(p, contract_version="1.2")
+        self.assertEqual([item["fresh"] for item in items], [Fraction(x) for x in literals])
+        self.assertEqual([item["id"] for item in decay_items(items, 0, 30)], ["I1"])
+
+    def test_roundtrip_preserves_which_quan_tick_spoils(self):
+        boundary = Fraction("30.025")
+        items = [{"id": "I1", "kind": "ca_linh", "fresh": boundary - Fraction("1e-20")},
+                 {"id": "I2", "kind": "ca_linh", "fresh": boundary}]
+        decay_items(items, GATHER_HAO, 30)
+        p = os.path.join(self.dir.name, "threshold-roundtrip.json")
+        write_inventory(p, items, contract_version="1.2")
+        back = read_inventory(p, contract_version="1.2")
+        for _ in range(3):
+            self.assertEqual(decay_items(back, QUAN_HAO, 30), [])
+        self.assertEqual([item["id"] for item in decay_items(back, QUAN_HAO, 30)], ["I1"])
+        self.assertEqual([item["id"] for item in decay_items(back[1:], QUAN_HAO, 30)], ["I2"])
+
     def test_valid_list_keeps_order_and_exact_fresh(self):
         p = self.path("kho.json", {"items": [
             {"id": "I1", "kind": "ca_linh", "fresh": 0},
@@ -77,10 +102,8 @@ class ValidItemFiles(BaseV12):
         decay_items(items, GATHER_HAO, 30)
         p = os.path.join(self.dir.name, "roundtrip.json")
         write_inventory(p, items, contract_version="1.2")
-        with open(p, encoding="utf-8") as f:
-            self.assertEqual(json.load(f)["items"][0]["fresh"], 30.01667)
         back = read_inventory(p, KINDS_P1, contract_version="1.2")
-        self.assertEqual(item_payload(back[0])["fresh"], 30.01667)
+        self.assertAlmostEqual(back[0]["fresh"], items[0]["fresh"], places=12)
         for _ in range(4):  # bốn tick Quán vẫn ở nhánh tươi
             self.assertEqual(decay_items(back, QUAN_HAO, 30), [])
         spoiled = decay_items(back, QUAN_HAO, 30)
@@ -140,6 +163,9 @@ class RejectedItemFiles(BaseV12):
             with self.assertRaises(BadInput):
                 self.read_v12("ngoaimien.json",
                               {"items": [{"id": "I1", "kind": "ca_linh", "fresh": bad}]})
+        with self.assertRaises(BadInput):
+            self.read_v12("ngoaimien.json",
+                          '{"items":[{"id":"I1","kind":"ca_linh","fresh":100.00000000000000001}]}')
 
     def test_non_numeric_fresh(self):
         with self.assertRaises(BadInput):
@@ -263,31 +289,41 @@ class DecayItems(BaseV12):
 
 
 class ItemPayloadAndJsonl(BaseV12):
-    def test_payload_rounds_to_five_digits(self):
+    def test_file_and_jsonl_preserve_numeric_literal_near_threshold(self):
+        fresh = Decimal("29.99999999999999999")
+        item = {"id": "I1", "kind": "ca_linh", "fresh": Fraction(fresh)}
+        p = os.path.join(self.dir.name, "exact.json")
+        write_inventory(p, [item], contract_version="1.2")
+        with open(p, encoding="utf-8") as f:
+            stored = json.load(f, parse_float=Decimal)
+        line = json.loads(dumps({"items": [item_payload(item)]}), parse_float=Decimal)
+        self.assertEqual(stored["items"][0]["fresh"], fresh)
+        self.assertEqual(line, stored)
+
+    def test_payload_keeps_exact_freshness(self):
         p = item_payload({"id": "I1", "kind": "ca_linh", "fresh": Fraction(11999, 120)})
-        self.assertEqual(p, {"id": "I1", "kind": "ca_linh", "fresh": 99.99167})
+        self.assertEqual(p, {"id": "I1", "kind": "ca_linh", "fresh": Fraction(11999, 120)})
         p0 = item_payload({"id": "I2", "kind": "ca_loc", "fresh": Fraction(30)})
         self.assertEqual(p0["fresh"], 30.0)
 
     def test_file_and_jsonl_export_same_fresh_precision(self):
-        from chonoi.jsonl import dumps
         item = {"id": "I1", "kind": "ca_linh", "fresh": Fraction(11999, 120)}
         p = os.path.join(self.dir.name, "same.json")
         write_inventory(p, [item], contract_version="1.2")
         with open(p, encoding="utf-8") as f:
-            file_fresh = json.load(f)["items"][0]["fresh"]
-        line = json.loads(dumps({"data": {"inventory": {"items": [item_payload(item)]}}}))
-        self.assertEqual(repr(line["data"]["inventory"]["items"][0]["fresh"]),
-                         repr(file_fresh))
+            file_fresh = json.load(f, parse_float=Decimal)["items"][0]["fresh"]
+        line = json.loads(dumps({"data": {"inventory": {"items": [item_payload(item)]}}}),
+                          parse_float=Decimal)
+        self.assertEqual(line["data"]["inventory"]["items"][0]["fresh"], file_fresh)
 
     def test_jsonl_keeps_other_floats_at_three_digits(self):
-        from chonoi.jsonl import dumps
         self.assertEqual(dumps({"x": 1.23456, "fresh": 99.99167}),
                          '{"x":1.235,"fresh":99.99167}')
 
     def test_jsonl_accepts_fraction_fresh(self):
-        from chonoi.jsonl import dumps
-        self.assertEqual(dumps({"fresh": Fraction(11999, 120)}), '{"fresh":99.99167}')
+        fresh = Fraction(11999, 120)
+        line = json.loads(dumps({"fresh": fresh}), parse_float=Decimal)
+        self.assertAlmostEqual(Fraction(line["fresh"]), fresh, places=12)
 
 
 class WriteInventoryV12(BaseV12):
@@ -306,7 +342,7 @@ class WriteInventoryV12(BaseV12):
                         contract_version="1.2")
         with open(p, encoding="utf-8") as f:
             before = f.read()
-        with mock.patch("chonoi.inventory.json.dump", side_effect=OSError("đĩa đầy")):
+        with mock.patch("chonoi.inventory.os.replace", side_effect=OSError("đĩa đầy")):
             with self.assertRaises(OSError):
                 write_inventory(p, [{"id": "I1", "kind": "ca_linh", "fresh": 10}],
                                 contract_version="1.2")

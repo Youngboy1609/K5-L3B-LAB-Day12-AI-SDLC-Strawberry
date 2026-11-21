@@ -1,6 +1,5 @@
 """Phase 3 gather rules at the simulation boundary."""
 
-import json
 import tempfile
 import unittest
 from fractions import Fraction
@@ -10,6 +9,7 @@ from chonoi.contract import load_contract
 from chonoi.ids import IdAllocator
 from chonoi.inputs import InputState
 from chonoi.inventory import write_inventory
+from chonoi.jsonl import dumps
 from chonoi.rng import Streams
 from chonoi.sim.gather import GatherSim
 
@@ -56,7 +56,7 @@ class GatherFreshness(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "inventory.json"
             write_inventory(path, sim.inventory_items(), contract_version="1.2")
-            self.assertEqual(end[1]["inventory"], json.loads(path.read_text(encoding="utf-8")))
+            self.assertEqual(dumps(end[1]["inventory"]) + "\n", path.read_text(encoding="utf-8"))
 
     def test_hit_and_faint_drop_in_lifo_order_including_spoiled_items(self):
         sim = self.build(hold=[item("I7"), item("I2"), item("I5", 10)],

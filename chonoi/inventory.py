@@ -1,9 +1,8 @@
 """File kho v1.0/v1.1 (Contract G): {"items": {id: số nguyên >= 0}}.
 File kho v1.2: {"items": [{"id": str, "kind": str, "fresh": số 0..100}, ...]}.
 
-v1.2 giữ fresh ở dạng Fraction (số hữu tỉ chính xác) để tính luật; số đã làm
-tròn khi xuất chỉ để hiển thị (item_payload làm tròn 5 chữ số) — không dùng
-số đã xuất để tính luật.
+v1.2 đọc số thập phân trực tiếp và giữ fresh ở dạng Fraction để tính luật.
+File kho và JSONL dùng chung cách xuất fresh, kể cả các số sát ngưỡng ươn.
 
 Đọc: từ chối sai schema / id lạ / số âm / fresh ngoài miền (BadInput -> mã 2).
 Chữ ký cũ (không truyền contract_version) vẫn đọc file count v1.0/v1.1.
@@ -15,10 +14,12 @@ import json
 import math
 import os
 import tempfile
+from decimal import Decimal, InvalidOperation
 from fractions import Fraction
 
 from .errors import BadInput
 from .ids import sort_by_id
+from .jsonl import dumps
 
 NODE_KINDS_P1 = ("bong_dien_dien", "bong_sung")
 NODE_KINDS_P2 = (*NODE_KINDS_P1, "keo_neo")
@@ -26,19 +27,18 @@ KINDS_P1 = ("ca_loc", "ca_linh", *NODE_KINDS_P1)
 KINDS_P2 = (*KINDS_P1, "ca_keo", "keo_neo")
 
 ITEM_KEYS_V12 = frozenset(("id", "kind", "fresh"))
-FRESH_EXPORT_DIGITS = 5  # file kho và JSONL xuất fresh cùng độ chính xác này
 
 
 def _to_fraction(value, what):
     """Số hữu tỉ chính xác: Fraction nguyên vẹn; float quy về thập phân gọi ra."""
-    if isinstance(value, bool) or not isinstance(value, (int, float, Fraction)):
+    if isinstance(value, bool) or not isinstance(value, (int, float, Decimal, Fraction)):
         raise BadInput(f"{what} phải là số, nhận: {value!r}")
     if isinstance(value, float):
         if not math.isfinite(value):
             raise BadInput(f"{what} phải hữu hạn, nhận: {value!r}")
-        # limit_denominator bỏ nhiễu biểu diễn: 0.004166666666666667 -> 1/240
-        # để ca biên (bốn tick Quán vẫn tươi, tick kế ươn) đúng như kế hoạch.
-        return Fraction(str(value)).limit_denominator(10 ** 9)
+        return Fraction(str(value))
+    if isinstance(value, Decimal) and not value.is_finite():
+        raise BadInput(f"{what} phải hữu hạn, nhận: {value!r}")
     return Fraction(value)
 
 
@@ -79,9 +79,12 @@ def validate_item_list(raw, kinds=KINDS_P1) -> list:
         seen.add(ident)
         if entry["kind"] not in kinds:
             raise BadInput(f"nguyên liệu lạ: {entry['kind']}")
-        fresh = _to_fraction(entry["fresh"], f"fresh của {ident}")
-        if fresh < 0 or fresh > 100:
-            raise BadInput(f"fresh ngoài miền 0..100 cho {ident}: {entry['fresh']!r}")
+        raw_fresh = entry["fresh"]
+        if isinstance(raw_fresh, Decimal) and raw_fresh.is_finite() and not 0 <= raw_fresh <= 100:
+            raise BadInput(f"fresh ngoài miền 0..100 cho {ident}: {raw_fresh!r}")
+        fresh = _to_fraction(raw_fresh, f"fresh của {ident}")
+        if not 0 <= fresh <= 100:
+            raise BadInput(f"fresh ngoài miền 0..100 cho {ident}: {raw_fresh!r}")
         out.append({"id": ident, "kind": entry["kind"], "fresh": fresh})
     return out
 
@@ -90,8 +93,8 @@ def read_inventory(path: str, kinds=KINDS_P1, *, contract_version=None):
     """v1.2 -> list cá thể; mặc định (không version) -> dict đếm như v1.0/v1.1."""
     try:
         with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-    except (OSError, ValueError) as e:
+            data = json.load(f, parse_float=Decimal if contract_version == "1.2" else None)
+    except (OSError, ValueError, InvalidOperation) as e:
         raise BadInput(f"không đọc được file kho {path}: {e}") from e
     if not isinstance(data, dict) or set(data.keys()) != {"items"}:
         raise BadInput("file kho chỉ được có khóa gốc 'items'")
@@ -133,9 +136,8 @@ def decay_items(items: list, amount, spoiled_below) -> list:
 
 
 def item_payload(item: dict) -> dict:
-    """Projection dùng chung file kho và JSONL: fresh xuất 5 chữ số."""
-    r = round(float(item["fresh"]), FRESH_EXPORT_DIGITS)
-    return {"id": item["id"], "kind": item["kind"], "fresh": 0.0 if r == 0 else r}
+    """Giữ fresh chính xác cho tới bước mã hóa số JSON."""
+    return {"id": item["id"], "kind": item["kind"], "fresh": item["fresh"]}
 
 
 def write_inventory(path: str, items, *, contract_version=None):
@@ -149,7 +151,10 @@ def write_inventory(path: str, items, *, contract_version=None):
     fd, tmp = tempfile.mkstemp(prefix=".inv-", suffix=".tmp", dir=d)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
-            json.dump({"items": body_items}, f, ensure_ascii=False, separators=(",", ":"))
+            if contract_version == "1.2":
+                f.write(dumps({"items": body_items}))
+            else:
+                json.dump({"items": body_items}, f, ensure_ascii=False, separators=(",", ":"))
             f.write("\n")
         os.replace(tmp, path)
     except BaseException:
