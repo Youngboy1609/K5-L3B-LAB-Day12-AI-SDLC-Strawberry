@@ -21,7 +21,7 @@
 - Phase 1: [quyền sửa file và thứ tự tích hợp](docs/plan/phase-1-tasks.md). Kiểm cấu trúc fixture quán trong `scenario.py`; kiểm liên kết đơn, phần giữ và kho thật khi dựng `QuanSim`, trước khi mở JSONL.
 - Phase 2: [quyền sửa file và thứ tự tích hợp](docs/plan/phase-2-tasks.md). `DaySession` điều phối các pha và Shop, `V11Session` xử lý pause ở mode độc lập. Khi ghép live, khởi tạo `LiveInputs(buttons=BUTTONS_V11, allow_buy=True)` để nhận lệnh mua một lần. Headless `day` bàn giao kho trong bộ nhớ và chỉ thay file JSONL đích sau khi chạy thành công.
 - Phase 3: [chia file và smoke phút 20](docs/plan/phase-3-tasks.md). Truyền `contract_version` qua CLI, fixture, Day và hai engine. Giữ manifest v1.1 trong lúc ghép các lát kho cá thể và kiểm trước khi bật v1.2. [ADR kho và độ tươi](docs/adr/0001-freshness-inventory.md)
-- Phase 4: [chia file, nghiệm thu và phát hành](docs/plan/phase-4.md). Soak dùng một `DaySession`, lặp mẫu D1–D5 và lấy kết quả khi Shop đóng.
+- Phase 4: [kế hoạch](docs/plan/phase-4.md) và [chia file, nghiệm thu, smoke](docs/plan/phase-4-tasks.md). Soak dùng một `DaySession`, lặp mẫu D1–D5 và lấy kết quả khi Shop đóng.
 - Cấu hình Phase 2 hiện dùng `tuning.day.day_plans`, `tuning.day.shop_ticks` và `tuning.day.upgrades`. Các giá trị đề xuất trong manifest cần đối chiếu bảng chuẩn [P2-01](docs/clarify.md).
 - **Số liệu chỉ đọc từ `game.contract.json` / dữ liệu**, không hard-code trong luật.
 - Mọi số ngẫu nhiên đi qua `Streams` (`chonoi/rng.py`); không dùng `random` toàn cục, không dùng đồng hồ hệ thống.
