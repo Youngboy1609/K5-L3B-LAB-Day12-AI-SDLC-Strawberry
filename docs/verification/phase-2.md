@@ -1,27 +1,21 @@
 # Ma trận kiểm chứng Phase 2 — QA chuẩn bị
 
 Nguyễn Minh Quân, Codex hỗ trợ, 2026-11-21. Đây là bằng chứng local trên
-HEAD ghi trong từng log và working tree QA chưa commit; chưa phải xác nhận bàn giao.
+mốc QA trước tích hợp. Kết quả chạy với dữ liệu thử chưa phải xác nhận bàn giao.
 
 | AC | Kiểm chứng | Kết quả hiện tại |
 |---|---|---|
 | AC-P2-01 | Manifest sáu nguyên liệu/món, cá, Cá Sấu, thứ tự tick | Chưa kiểm v1.1; manifest hiện là v1.0, chờ bảng chuẩn P2-01 và module gameplay. |
 | AC-P2-02 | `tests/test_phase2_day.py`, fixture smoke 3 tick | Chưa đạt: CLI từ chối `--days 1`. Test không skip/expectedFailure. Pause, Shop, nâng cấp, D1–D5 chưa kiểm. |
 | AC-P2-03 | HUD, FPS, chữ, benchmark một ngày | Chưa kiểm. Cần bản chơi day và ghi máy đo; local không thay kết quả máy chấm. |
-| AC-P2-04 | Regression P1, kiểm tất định, test mới | P1 và tất định xem log bên dưới; coverage P2 chưa đầy đủ. |
+| AC-P2-04 | Regression P1, kiểm tất định, test mới | Chạy lại regression và kiểm tất định trên bản ghép. Coverage P2 chưa đầy đủ. |
 | AC-P2-05 | Tag remote trỏ commit main đã kiểm | Chưa xác minh remote/tag; không có thao tác push/tag trong lượt QA này. |
 
-Kết quả lượt local: **79/79 test P1 đạt; suite mới 80/81 đạt**, một lỗi smoke day
-do CLI chưa nhận --days. Team check đạt 6 thành viên. Hai cặp JSONL cùng seed/input
-đều giống byte. Không sửa gameplay trong lượt này.
+Lượt QA trước tích hợp có **79/79 test P1 đạt** và **80/81 test toàn suite**.
+Smoke day khi đó dừng ở CLI do chưa có \`--days\`. Hai mode độc lập cho JSONL
+giống byte khi chạy lại cùng seed/input.
 
-## Bằng chứng và cách chạy
-
-- [Mốc 79 test P1](../proof/phase-2/baseline-p1.txt).
-- [Suite sau khi thêm QA P2](../proof/phase-2/suite-phase2.txt).
-- [Kiểm nhóm](../proof/phase-2/team-check.txt).
-- [Hash hai lần chạy từng mode](../proof/phase-2/determinism.json).
-- [Hướng dẫn chạy lại](../proof/phase-2/README.md).
+[Fixture và hướng dẫn chạy lại](../proof/phase-2/README.md).
 
 Smoke dựa đúng fixture trong `docs/plan/phase-2-tasks.md`: cần spawn mặc định
 nằm trong bến; đối chiếu lại khi bảng chuẩn thay đổi. Kiểm thứ tự ba event khởi
