@@ -247,7 +247,8 @@ function drawGather(w, h) {
 const DISH_NAME = { ca_loc_nuong_trui: "Cá lóc nướng trui", goi_bong_sung: "Gỏi bông súng", lau_ca_linh_dien_dien: "Lẩu cá linh bông điên điển" };
 // Snapshot bỏ các loại có tồn 0, nên HUD tự liệt kê 4 mã nguyên liệu hợp lệ của kho (chỉ để hiển thị).
 const QUAN_KINDS = ["ca_loc", "ca_linh", "bong_dien_dien", "bong_sung"];
-const CUSTOMER_STATE = { reserved: "đang chờ", assigned: "đang nấu", served: "đang ăn", eating: "đang ăn" };
+// Theo c.state của snapshot thật: "waiting" | "eating" (order_status là trường riêng). Trạng thái lạ thì hiện nguyên giá trị.
+const CUSTOMER_STATE = { waiting: "đang chờ", eating: "đang ăn" };
 
 // Tên món tiếng Việt; nhận chuỗi dish_id hoặc payload {order_id, dish_id, base_price}.
 function dishName(d) {
@@ -261,7 +262,7 @@ function quanStockLine() {
   if (!snap.stock || typeof snap.stock !== "object") return null;
   const stock = snap.stock, held = {};
   (Array.isArray(snap.customers) ? snap.customers : []).forEach((c) => {
-    if (!c || c.state !== "reserved" || !c.reserved || typeof c.reserved !== "object") return;
+    if (!c || c.order_status !== "reserved" || !c.reserved || typeof c.reserved !== "object") return;
     Object.keys(c.reserved).forEach((k) => (held[k] = (held[k] || 0) + (Number(c.reserved[k]) || 0)));
   });
   const kinds = QUAN_KINDS.slice();
@@ -294,7 +295,7 @@ function drawCustomerPanel(x0, y0, pw, yMax) {
     ctx.font = "12px system-ui, sans-serif";
     const dishW = Math.max(60, pw - 42 - ctx.measureText(right).width - 20);
     const dish = wrapParts(String(dishName(c.dish_id) || "?").split(" "), " ", dishW, 12);
-    const col = c.state === "reserved" ? "#f4b6c2" : c.state === "assigned" ? "#ffb74d" : (c.state === "served" || c.state === "eating") ? "#a5d6a7" : "#e8eef2";
+    const col = c.state === "waiting" ? "#f4b6c2" : c.state === "eating" ? "#a5d6a7" : "#e8eef2";
     return { c, right, dish, dishW, col, hgt: dish.length * lineH + gap };
   });
   // Bước 2: lấy số khách vừa chiều cao (chừa một dòng "+N khách nữa" nếu thiếu chỗ).
