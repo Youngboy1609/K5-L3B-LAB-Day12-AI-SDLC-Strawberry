@@ -8,14 +8,17 @@ cả hai chạy CÙNG một lớp sim, không nhân đôi logic.
 """
 
 import math
+import os
+import tempfile
 
 from .ids import IdAllocator
-from .inputs import InputPlayer
+from .inputs import BUTTONS_V11, InputPlayer
 from .inventory import write_inventory
 from .jsonl import JsonlWriter
 from .rng import Streams
 from .sim.gather import GatherSim
 from .sim.quan import QuanSim
+from .sim.day import DaySim
 
 
 def build_sim(mode, tuning, scenario, seed, inventory):
@@ -74,24 +77,161 @@ class Session:
             write_inventory(inventory_out, self.sim.inventory_items())
 
 
-def run(mode, tuning, scenario, seed, frames, ticks, out_path, snapshot_every, inventory=None, inventory_out=None):
-    sess = Session(mode, tuning, scenario, seed, inventory)
-    player = InputPlayer(frames)
-    w = JsonlWriter(out_path)
+class V11Session(Session):
+    """v1.1 single-mode session: pause advances wall ticks while simulation clocks stop."""
+
+    def __init__(self, mode, tuning, scenario, seed, inventory=None):
+        super().__init__(mode, tuning, scenario, seed, inventory)
+        self.sim_tick = 0
+        self.phase_tick = 0
+        self.paused = False
+
+    def snapshot(self):
+        s = _common(self.sim, self.tick, self.sim_tick, self.phase_tick, self.tuning,
+                    "paused" if self.paused else ("finished" if self.sim.done else "playing"))
+        s.update(self.sim.snapshot())
+        return s
+
+    def step(self, inp):
+        self.tick += 1
+        if inp.pressed("pause"):
+            self.paused = not self.paused
+            pause_event = {"type": "event", "tick": self.tick, "phase": self.sim.phase,
+                           "name": "paused" if self.paused else "resumed", "data": {}}
+            if self.paused:
+                return [pause_event]
+        else:
+            pause_event = None
+        if self.paused:
+            return []
+        self.sim_tick += 1
+        self.phase_tick += 1
+        rows = [{"type": "event", "tick": self.tick, "phase": self.sim.phase, "name": name, "data": data}
+                for name, data in self.sim.step(inp)]
+        return ([pause_event] if pause_event else []) + rows
+
+    def end_row(self):
+        row = super().end_row()
+        row["ticks"] = self.tick
+        row["sim_tick"] = self.sim_tick
+        return row
+
+
+class DaySession:
+    def __init__(self, tuning, scenario, seed, days):
+        self.sim = DaySim(tuning, scenario, seed, days)
+        self.tuning, self.mode = tuning, "day"
+        self.tick = 0
+        self.sim_tick = 0
+        self.paused = False
+        self.initial_events = [("gather", "day_start", {}), ("gather", "day_plan", self.sim.plan),
+                               ("gather", "phase_start", {"phase": "gather"})]
+
+    @property
+    def done(self):
+        return self.sim.done
+
+    @property
+    def phase_tick(self):
+        return self.sim.phase_tick
+
+    def snapshot(self):
+        s = _common(self.sim, self.tick, self.sim_tick, self.phase_tick, self.tuning,
+                    "paused" if self.paused else ("finished" if self.done else "playing"))
+        s.update(self.sim.snapshot())
+        return s
+
+    def _wrap(self, tick, events, old_day=None):
+        rows = []
+        for phase, name, data in events:
+            day = old_day if phase == "shop" and old_day is not None else self.sim.day
+            row = {"type": "event", "tick": tick, "phase": phase, "day": day,
+                   "name": name, "data": data}
+            rows.append(row)
+        return rows
+
+    def step(self, inp):
+        self.tick += 1
+        if inp.pressed("pause"):
+            self.paused = not self.paused
+            pause_event = [(self.sim.phase, "paused" if self.paused else "resumed", {})]
+            if self.paused:
+                return self._wrap(self.tick, pause_event)
+        else:
+            pause_event = []
+        if self.paused:
+            return []
+        self.sim_tick += 1
+        old_day = self.sim.day
+        return self._wrap(self.tick, pause_event + self.sim.step(inp), old_day)
+
+    def end_row(self):
+        s = self.sim
+        mult = self.tuning["score"]["reputation_multiplier"]
+        return {"type": "end", "ticks": self.tick, "sim_tick": self.sim_tick, "mode": "day",
+                "state": "finished" if s.done else "playing", "reason": s.reason if s.done else "tick_limit",
+                "money": s.money, "earned": s.earned, "reputation": s.reputation,
+                "score": s.earned + mult * math.floor(s.reputation), "days_completed": s.days_completed}
+
+
+def run(mode, tuning, scenario, seed, frames, ticks, out_path, snapshot_every, inventory=None,
+        inventory_out=None, contract_version="1.0", days=1):
+    if mode == "day":
+        sess = DaySession(tuning, scenario, seed, days)
+    elif contract_version == "1.1":
+        sess = V11Session(mode, tuning, scenario, seed, inventory)
+    else:
+        sess = Session(mode, tuning, scenario, seed, inventory)
+    player = InputPlayer(frames, buttons=BUTTONS_V11) if contract_version == "1.1" else InputPlayer(frames)
+    target = out_path
+    temp = None
+    if mode == "day":
+        fd, temp = tempfile.mkstemp(prefix=".day-", suffix=".jsonl.tmp", dir=os.path.dirname(os.path.abspath(out_path)))
+        os.close(fd)
+        target = temp
+    w = None
     try:
+        w = JsonlWriter(target)
+        if mode == "day":
+            for row in sess._wrap(0, sess.initial_events):
+                w.write(row)
         w.write(sess.snapshot())  # tick 0: sau khi dựng scenario, trước mọi input
         last_snapped = 0
         while sess.tick < ticks and not sess.done:
             inp = player.advance(sess.tick)  # bước k đọc input có tick == k
+            before_phase = getattr(sess.sim, "phase", mode)
             for row in sess.step(inp):
                 w.write(row)
-            if sess.tick % snapshot_every == 0 or sess.done:
+            changed = mode == "day" and sess.sim.phase != before_phase
+            if changed or sess.tick % snapshot_every == 0 or sess.done:
                 w.write(sess.snapshot())
                 last_snapped = sess.tick
         if last_snapped != sess.tick:
             w.write(sess.snapshot())
         w.write(sess.end_row())
-    finally:
-        w.close()
-    sess.write_inventory_if_done(inventory_out)
+    except BaseException:
+        try:
+            if w is not None:
+                w.close()
+        finally:
+            if temp and os.path.exists(temp):
+                os.unlink(temp)
+        raise
+    else:
+        try:
+            if w is not None:
+                w.close()
+        except BaseException:
+            if temp and os.path.exists(temp):
+                os.unlink(temp)
+            raise
+    if mode != "day":
+        sess.write_inventory_if_done(inventory_out)
+    if temp:
+        try:
+            os.replace(temp, out_path)
+        except BaseException:
+            if os.path.exists(temp):
+                os.unlink(temp)
+            raise
     return sess.sim
