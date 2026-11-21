@@ -3,13 +3,15 @@
 > Cập nhật file này qua các phase (lịch sử git phải cho thấy điều đó). Ngắn gọn, có lệnh chạy thật.
 
 ## Lệnh
-- Test: `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v`
-- Headless: `python3 -m chonoi.headless --mode gather|quan --seed 1 --ticks 600 --out out.jsonl`
-- Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather|quan` (mở địa chỉ in ra; WASD, E, Space, R)
+- Test trên macOS/Linux: `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v`
+- Test trên PowerShell: đặt `$env:PYTHONPATH = 'tests;.'` rồi chạy `python -m unittest discover -s tests -v`.
+- Headless quán: `python3 -m chonoi.headless --mode quan --seed 1 --ticks 600 --out quan.jsonl`. Đổi mode thành `gather` để chạy buổi sáng.
+- Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather`. Mở địa chỉ in ra, dùng WASD, E, Space, R. Đổi mode thành `quan` để thử buổi tối.
 
 ## Cấu trúc & quy ước
 - (Starter Python là TÙY CHỌN; nhóm có thể dùng ngôn ngữ khác nếu giữ Test Contract.) Khung do giảng viên cấp: `chonoi/{headless,inputs,scenario,contract,rng,ids,jsonl,inventory,runner,live}.py` và `chonoi/web/`. Hạn chế sửa; nếu phải sửa thì báo cả nhóm và ghi lại lý do.
 - Luật chơi của nhóm: `chonoi/sim/gather.py`, `chonoi/sim/quan.py` (tìm `TODO(nhóm)`).
+- Phase 1: [quyền sửa file và thứ tự tích hợp](docs/plan/phase-1-tasks.md). Kiểm cấu trúc fixture quán trong `scenario.py`; kiểm liên kết đơn, phần giữ và kho thật khi dựng `QuanSim`, trước khi mở JSONL.
 - **Số liệu chỉ đọc từ `game.contract.json` / dữ liệu**, không hard-code trong luật.
 - Mọi số ngẫu nhiên đi qua `Streams` (`chonoi/rng.py`); không dùng `random` toàn cục, không dùng đồng hồ hệ thống.
 - Sắp danh sách thực thể bằng `ids.sort_by_id`; cấp id bằng `IdAllocator`.
