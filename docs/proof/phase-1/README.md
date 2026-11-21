@@ -10,7 +10,7 @@ PYTHONPATH=tests:. python3 -m unittest test_smoke_p1.Integration -v
 python3 tools/check_team.py
 ```
 
-- `suite.txt`: đầu ra thật của toàn bộ suite, exit 1; 49 phương thức, 33 đạt và 16 chưa đạt (17 failure reports do subtest). Chạy ngoài sandbox để localhost HTTP hoạt động.
+- [Lượt chạy sau tích hợp](suite-gather-fix.txt) ghi 79/79 test đạt tại `e6a3f47`. Ma trận AC giữ tóm tắt lượt QA trước tích hợp.
 - `inventory-smoke.txt`: cả 5 smoke tích hợp đạt, exit 0.
 - `team-check.txt`: kiểm danh sách 6 thành viên đạt, exit 0.
 - `inventory-observed.json`: file kho thực sự do gather xuất, không phải kho mẫu chép tay.
