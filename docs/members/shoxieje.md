@@ -7,3 +7,9 @@
 
 ## Nhật ký dùng AI (gửi Nghĩa tổng hợp)
 - Claude Code: đọc kế hoạch + starter, viết `quan_service.py` và unit test, chạy suite `PYTHONPATH=tests:. python3 -m unittest discover -s tests` → 49 test OK.
+
+## Phase 2 — `phase2/quan-day-menu`
+- `QuanSim(..., dish_ids=, start=)`: lọc khách theo món trong kế hoạch Ngày trước khi lọc kho; quán độc lập bán cả menu. Nhận tiền/earned/uy tín bàn giao, giữ `0 ≤ money ≤ earned`, `shift_earned` về 0 mỗi ca.
+- Báo cáo ca `served/paid/left/left_closing/tips` trong `quan_end` (một lần) và snapshot `shift`; snapshot `menu` cho HUD.
+- `tests/test_quan_day_menu.py` (11 ca, bố trí 2 bếp/4 bàn/6 món dựng trong test — kiểm cấu trúc, chờ số chuẩn P2-01). Suite: 90 test OK.
+- AI không đọc được lab board (cần quyền ngoài phiên) nên chưa đối chiếu số chuẩn v1.1.
