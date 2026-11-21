@@ -10,7 +10,14 @@ import tempfile
 
 from .errors import BadInput
 
-KINDS_P1 = ("ca_loc", "ca_linh", "bong_dien_dien", "bong_sung")
+NODE_KINDS_P1 = ("bong_dien_dien", "bong_sung")
+NODE_KINDS_P2 = (*NODE_KINDS_P1, "keo_neo")
+KINDS_P1 = ("ca_loc", "ca_linh", *NODE_KINDS_P1)
+KINDS_P2 = (*KINDS_P1, "ca_keo", "keo_neo")
+
+
+def ingredient_kinds(contract_version):
+    return KINDS_P2 if contract_version == "1.1" else KINDS_P1
 
 
 def validate_items(items, kinds=KINDS_P1):

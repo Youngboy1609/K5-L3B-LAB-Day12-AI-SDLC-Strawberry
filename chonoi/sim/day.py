@@ -122,7 +122,7 @@ class DaySim:
         menu_ids = list(self.plan["dishes"])
         start = {"money": self.money, "earned": self.earned, "reputation": self.reputation}
         self.phase_sim = QuanSim(tuning, qs, Streams(self.seed + self.day - 1), self.ids,
-                                 inventory=items, dish_ids=menu_ids, start=start)
+                                 inventory=items, dish_ids=menu_ids, start=start, contract_version="1.1")
         self.phase = "quan"
         self.phase_tick = 0
 
