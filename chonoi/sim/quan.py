@@ -16,11 +16,12 @@ class QuanSim:
     phase = "quan"
 
     def __init__(self, tuning, scenario, streams, ids, inventory=None, dish_ids=None, start=None,
-                 *, contract_version="1.0", freshness=None):
+                 *, contract_version="1.0", freshness=None, reservations=None):
         """`dish_ids`: tập ID món trong kế hoạch Ngày (mode `day`); None = quán độc lập, bán cả menu.
         `start`: {"money", "earned", "reputation"} bàn giao từ pha trước trong `day`; None = ca mới."""
         t = tuning["quan"]
         self.t = t
+        self._tick_hz = int(tuning["tick_hz"])
         self.menu = tuning["menu"]
         # Chỉ mode `day` truyền dish_ids/start; quán độc lập giữ JSONL đúng định dạng v1.0 (không thêm khóa).
         self.day_mode = dish_ids is not None or start is not None
@@ -35,6 +36,23 @@ class QuanSim:
             self.dish_ids = sorted(set(dish_ids))
         self.rng = streams
         self.ids = ids
+        self.item_stock = contract_version == "1.2"
+        self.initial_events = []
+        self._reservation_config = tuning.get("reservations", {
+            "count": 2, "table_hold_s": 30, "price_multiplier": 1.5,
+            "failed_reputation_delta": -1,
+        })
+        self.reservations_enabled = self.item_stock and isinstance(tuning.get("reservations"), dict)
+        if reservations is None and self.reservations_enabled:
+            from .quan_reservations import build_reservations
+            self.reservations = build_reservations(tuning, scenario, streams, self.dish_ids)
+            self.initial_events = [("reservation_announced", dict(row)) for row in self.reservations]
+        elif reservations is not None:
+            from .quan_reservations import normalize_reservations
+            self.reservations = normalize_reservations(reservations, tuning)
+            self.reservations_enabled = True
+        else:
+            self.reservations = []
         p = scenario.get("player", {})
         self.pos = list(p.get("pos", t["start_pos"]))
         self.vel = [float(c) for c in p.get("vel", [0.0, 0.0])]
@@ -42,7 +60,6 @@ class QuanSim:
         self._ramp_left = 0
         # kho: --inventory HOẶC scenario.stock (cả hai -> cli đã báo mã 2)
         raw_stock = inventory if inventory is not None else scenario.get("stock", {})
-        self.item_stock = contract_version == "1.2"
         self.stock = list(raw_stock) if self.item_stock else dict(raw_stock)
         if self.item_stock:
             rules = tuning["freshness"] if freshness is None else freshness
@@ -55,6 +72,8 @@ class QuanSim:
                             cook_ticks_left=s.get("cook_ticks_left", 0), ready_ticks=s.get("ready_ticks", 0))
                        for s in self._merge(t["stoves"], scenario.get("stoves", []))]
         self.tables = self._merge(t["tables"], scenario.get("tables", []))
+        if self.reservations_enabled:
+            self._validate_reservation_rows()
         self.phase_tick = 0
         self.random_customers = scenario.get("random_customers", True)
         self.customers = []
@@ -112,8 +131,33 @@ class QuanSim:
             by_id[u["id"]].update(u)
         return sort_by_id(list(by_id.values()))
 
+    def _validate_reservation_rows(self):
+        ids = set()
+        tables = set()
+        table_ids = {table["id"] for table in self.tables}
+        shift_ticks = int(round(self.t["duration_s"] * self._tick_hz))
+        maximum = self._reservation_config.get("count", 2)
+        if len(self.reservations) > maximum:
+            raise BadInput(f"reservations tối đa {maximum} đơn")
+        for row in self.reservations:
+            ident, table_id, dish_id = row.get("id"), row.get("table_id"), row.get("dish_id")
+            arrival = row.get("arrival_tick")
+            if not isinstance(ident, str) or not ident or ident in ids:
+                raise BadInput("reservation.id phải là chuỗi duy nhất")
+            if table_id not in table_ids or table_id in tables:
+                raise BadInput("reservation.table_id phải là bàn tồn tại và không trùng")
+            if dish_id not in self.dish_ids:
+                raise BadInput("reservation.dish_id phải thuộc menu tối nay")
+            if isinstance(arrival, bool) or not isinstance(arrival, int) or not 1 <= arrival < shift_ticks:
+                raise BadInput(f"reservation.arrival_tick phải thuộc [1, {shift_ticks - 1}]")
+            ids.add(ident)
+            tables.add(table_id)
+
     def snapshot(self) -> dict:
         occupied = {c["table_id"]: c["id"] for c in self.customers}
+        customers = sort_by_id(self.customers)
+        if self.reservations_enabled:
+            customers = [dict(c, reservation_id=c.get("reservation_id")) for c in customers]
         snap = {
             "player": {"pos": self.pos},
             "stock": ([item_payload(item) for item in sort_by_id(self.stock)] if self.item_stock else
@@ -121,9 +165,13 @@ class QuanSim:
             "hand": self.hand,
             "stoves": [{k: s.get(k) for k in ("id", "pos", "state", "dish", "cook_ticks_left", "ready_ticks")}
                        for s in self.stoves],
-            "tables": [{"id": tb["id"], "pos": tb["pos"], "customer_id": occupied.get(tb["id"])} for tb in self.tables],
-            "customers": sort_by_id(self.customers),
+            "tables": [{"id": tb["id"], "pos": tb["pos"], "customer_id": occupied.get(tb["id"]),
+                        **({"reservation_id": self._held_reservation_id(tb["id"])} if self.reservations_enabled else {})}
+                       for tb in self.tables],
+            "customers": customers,
         }
+        if self.reservations_enabled:
+            snap["reservations"] = [dict(row) for row in sort_by_id(self.reservations)]
         if self.day_mode:
             snap["menu"] = list(self.dish_ids)
             snap["shift"] = dict(self.shift, shift_earned=self.shift_earned)
@@ -296,6 +344,26 @@ class QuanSim:
             excluded.update(item["id"] for item in candidates[:count])
         return selected
 
+    def _held_reservation_id(self, table_id):
+        row = next((r for r in self.reservations
+                    if r["table_id"] == table_id and r["state"] in ("holding", "waiting")), None)
+        return row["id"] if row else None
+
+    def fail_reservation(self, reservation_id, reason, events):
+        row = next((r for r in self.reservations if r["id"] == reservation_id), None)
+        if row is None or row["state"] in ("served", "failed"):
+            return
+        row["state"] = "failed"
+        delta = self.tuning_reservations["failed_reputation_delta"]
+        self.reputation = round(min(self.t["reputation_max"],
+                                    max(self.t["reputation_min"], self.reputation + delta)), 9)
+        events.append(("reservation_failed", {"id": row["id"], "table_id": row["table_id"],
+                                               "reason": reason, "reputation": self.reputation}))
+
+    @property
+    def tuning_reservations(self):
+        return self._reservation_config
+
     def _validate_payload(self, payload, customers, source):
         if not isinstance(payload, dict) or set(payload) != {"order_id", "dish_id", "base_price"}:
             raise BadInput(f"{source}.dish phải có order_id, dish_id, base_price")
@@ -336,8 +404,48 @@ class QuanSim:
             interact(self, events)
         settle_customers(self, events)
         if not self.done:
+            self._process_reservations(events)
+        if not self.done:
             self._spawn_scheduled_customer(events)
         return events
+
+    def _process_reservations(self, events):
+        hz = int(self.tuning_tick_hz)
+        hold_ticks = round(self.tuning_reservations["table_hold_s"] * hz)
+        for row in sort_by_id(self.reservations):
+            if row["state"] in ("served", "failed", "waiting"):
+                continue
+            hold_at = max(0, row["arrival_tick"] - hold_ticks)
+            if self.phase_tick >= hold_at and row["state"] == "scheduled":
+                row["state"] = "holding"
+            if self.phase_tick < row["arrival_tick"]:
+                continue
+            if any(customer["table_id"] == row["table_id"] for customer in self.customers):
+                self.fail_reservation(row["id"], "occupied", events)
+                continue
+            held = {ident for customer in self.customers if customer.get("order_status") == "reserved"
+                    for ident in customer.get("reserved", [])}
+            selected = self._select_items(self.menu[row["dish_id"]]["recipe"], held)
+            if selected is None:
+                self.fail_reservation(row["id"], "stock", events)
+                continue
+            customer_id = self.ids.new("C")
+            patience = int(round(60 * hz))
+            customer = {"id": customer_id, "table_id": row["table_id"], "state": "waiting",
+                        "order_tick": self.phase_tick, "patience_ticks_left": patience,
+                        "order_status": "reserved", "dish_id": row["dish_id"], "eat_ticks_left": 0,
+                        "tip": 0, "reserved": [item["id"] for item in selected],
+                        "reservation_id": row["id"]}
+            self.customers.append(customer)
+            row["state"] = "waiting"
+            events.append(("reservation_arrived", {"id": row["id"], "table_id": row["table_id"],
+                                                     "dish_id": row["dish_id"]}))
+            events.append(("customer_arrived", {"customer_id": customer_id, "table_id": row["table_id"],
+                                                 "dish_id": row["dish_id"], "reservation_id": row["id"]}))
+
+    @property
+    def tuning_tick_hz(self):
+        return self._tick_hz
 
     def _refresh_reservations(self, events):
         by_id = self.stock_by_id
@@ -377,7 +485,9 @@ class QuanSim:
         if self.phase_tick < first or (self.phase_tick - first) % interval:
             return
         occupied = {c["table_id"] for c in self.customers}
-        free_tables = [table for table in self.tables if table["id"] not in occupied]
+        held_tables = {row["table_id"] for row in self.reservations if row["state"] == "holding"}
+        free_tables = [table for table in self.tables
+                       if table["id"] not in occupied and table["id"] not in held_tables]
         if not free_tables:
             return
         table = free_tables[0]
