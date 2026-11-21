@@ -18,7 +18,7 @@
 - Khi đổi phiên bản, giữ manifest cũ trong fixture hồi quy và thêm ca chung cho cả CLI lẫn live ngay từ lúc thống nhất cách truyền version.
 
 ## Phase 4 (cuối)
-- **Phạm vi đã kiểm** Cây thử có manifest v1.3 qua 208 test và 4 ca từ PR #19 về khai báo lệnh, JSONL, kho và soak. Hai lượt seed 7 hoàn tất 10/10 Ngày, 0 crash và cho cùng kết quả gameplay. Cây manifest v1.1 qua 193 test.
-- **Hồ sơ đang chờ** Benchmark 30 giây và `bench.json`, ba cảnh báo trong chế độ tương phản cao, clone sạch, ZIP, tag `phase-4`, GitHub Release `v1.0.0` và ma trận trên commit bàn giao.
+- **Điều làm tốt** Nhóm giữ schema v1.2 và so JSONL theo byte trước khi bật manifest v1.3. Cây ghép qua 217 test. Hai lượt soak đủ 10 Ngày, 0 crash và trùng kết quả. [Ma trận Phase 4](verification/phase-4.md)
+- **Điều cần cải thiện** Lệnh benchmark mặc định trên máy Windows kỳ vọng một bản Chromium khác bản đã cài. Lượt đo trên PR #23 bắt lỗi mở trình duyệt. Nhóm khai phiên bản Playwright trong file phụ thuộc và cho lệnh dùng bản Chromium tương thích đã có trên máy.
 - **Lỗi AI đã xác minh:** ở Phase 3, đường Live Day khởi tạo với version mặc định v1.1 trong khi contract là v1.2. Fixture v1.2 qua test live phát hiện thiếu truyền `contract_version`; kiểm tra và kết quả được ghi trong `test_live_day.py` và `docs/verification/phase-3.md`.
-- **Việc tiếp theo:** hoàn thành từng AC trên cùng ứng viên, lưu artifact và lệnh thực chạy, rồi rà đóng góp từng thành viên từ commit/bằng chứng trước khi viết kết luận retro cuối. Chưa ghi đánh giá chéo, số liệu cá nhân hoặc hỗ trợ đồng đội nếu chưa có bằng chứng.
+- **Việc tiếp theo** Nghĩa và Minh Quân xác nhận platform chạy từ clone sạch trên commit bàn giao. Mỗi thành viên kiểm lại giới hạn 200 từ và bổ sung bằng chứng cá nhân trước khi chốt hồ sơ.
