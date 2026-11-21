@@ -13,6 +13,7 @@ import math
 from ..ids import sort_by_id
 from ..inventory import hold_to_items
 from .gather_actions import advance_nodes, try_catch, try_harvest
+from .gather_fish import advance_fish as move_fish, maybe_spawn_fish
 from .gather_monsters import DEFAULT_RULES, advance_monsters, build_monsters
 from .ramp import ramp_velocity
 
@@ -24,12 +25,13 @@ class GatherSim:
     mode = "gather"
     phase = "gather"
 
-    def __init__(self, tuning, scenario, streams, ids, *, day=1, advance_fish=None):
+    def __init__(self, tuning, scenario, streams, ids, *, day=1, advance_fish=move_fish):
         t = tuning["gather"]
         self.t = t
         self.day = day
         self.tick_hz = tuning["tick_hz"]
         self.advance_fish = advance_fish
+        self._fish_spawn_allowed = scenario.get("random_fish", True)
         self.monster_rules = t.get("monster_rules", DEFAULT_RULES)
         self.monsters = build_monsters(self.monster_rules, scenario, day, t["bounds"])
         self.rng = streams
@@ -54,11 +56,10 @@ class GatherSim:
                        "regrow_ticks": n.get("regrow_ticks", 0)} for n in src_nodes]
         if "fish" in scenario:
             src_fish = scenario["fish"]
-        elif scenario.get("random_fish", True):
+        elif self._fish_spawn_allowed:
             src_fish = t["fish_initial"]
         else:
             src_fish = []
-        # Đàn cá đứng yên ở phase này. Cá bơi / sinh thêm là việc của phase sau.
         self.fish = [{"id": f["id"], "kind": f["kind"], "pos": [float(c) for c in f["pos"]],
                       "heading_deg": f.get("heading_deg", 0)} for f in src_fish]
         for coll in (self.nodes, self.fish, self.monsters):
@@ -120,8 +121,10 @@ class GatherSim:
         # 5. hết giờ
         if self.time_left_ticks <= 0:
             self._finish("time", events)
-        elif self.advance_fish is not None:
-            self.advance_fish(self, events)
+        elif self._fish_spawn_allowed:
+            if self.advance_fish is not None:
+                self.advance_fish(self, events)
+            maybe_spawn_fish(self, events)
         return events
 
     # --- tiện ích ---------------------------------------------------------------
