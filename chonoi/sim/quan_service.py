@@ -153,8 +153,8 @@ def _interact_table(sim, tb, events):
     sim.shift["served"] += 1
     dish = sim.hand
     sim.hand = None
-    events.append(("served", {"customer_id": c["id"], "table_id": tb["id"], **_dish_payload(dish),
-                              "patience_ticks": left, "price": price, "tip": tip}))
+    events.append(("served", {"order_id": dish["order_id"], "table_id": tb["id"], "dish_id": dish["dish_id"],
+                              "patience_ticks_left": left, "base_price": price, "tip": tip}))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -170,9 +170,8 @@ def _pay(sim, c, events, reason):
     sim.shift["tips"] += c["tip"]
     if c["tip"] > 0:
         sim.reputation = _clamp_rep(sim, sim.reputation + sim.t["tip_reputation"])
-    events.append(("paid", {"customer_id": c["id"], "table_id": c["table_id"], "order_id": c["id"],
-                            "price": c["base_price"], "tip": c["tip"], "amount": amount,
-                            "reason": reason, "money": sim.money, "reputation": sim.reputation}))
+    events.append(("paid", {"order_id": c["id"], "table_id": c["table_id"], "base_price": c["base_price"],
+                            "tip": c["tip"], "amount": amount, "reason": reason}))
 
 
 def _discard_order_dishes(sim, order_id, events):
@@ -199,7 +198,7 @@ def settle_customers(sim, events):
         if c["state"] == "eating":
             if c["eat_ticks_left"] > 0 and not closing:
                 continue
-            _pay(sim, c, events, "finished" if c["eat_ticks_left"] == 0 else "closed")
+            _pay(sim, c, events, "finished_eating" if c["eat_ticks_left"] == 0 else "closing")
         else:
             if c["patience_ticks_left"] > 0 and not closing:
                 continue
