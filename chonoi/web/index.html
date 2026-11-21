@@ -27,6 +27,16 @@
   .stats.shop td.btns { margin: 0; padding: 4px 0 4px 14px; display: table-cell; }
   .stats.shop td.btns button { padding: 6px 18px; font-size: 18px; }
   .card .msg { color: #a5d6a7; font-weight: 600; }
+  /* Tương phản cao (phím H hoặc nút ở Menu / Tạm dừng): nền đen, chữ trắng, tiêu đề và cảnh báo vàng, viền dày. */
+  body.hc, body.hc #screen { background: #000; }
+  body.hc #screen { background: rgba(0, 0, 0, .92); }
+  body.hc .card { background: #000; border: 3px solid #fff; color: #fff; }
+  body.hc .card h1, body.hc .card h2, body.hc .card h3 { color: #ffff00; }
+  body.hc .card p, body.hc .card .hint, body.hc .stats td { color: #fff; }
+  body.hc .card .msg { color: #ffff00; }
+  body.hc .btns button { background: #ffff00; color: #000; border: 3px solid #ffff00; }
+  body.hc .btns button.secondary { background: #000; color: #fff; border: 3px solid #fff; }
+  body.hc .btns button:focus-visible { outline: 4px solid #00ffff; outline-offset: 3px; }
 </style>
 </head>
 <body>
@@ -38,6 +48,9 @@
  * Client chơi trực tiếp (starter). CHỈ ĐỌC snapshot từ GET /state và gửi phím qua POST /input.
  * Trường nào snapshot chưa có thì bỏ qua (nhóm viết luật tới đâu, hình hiện tới đó). Hình khối tạm, thay bằng đồ họa của nhóm.
  * Phím: WASD / mũi tên = di chuyển · E = interact · Space = catch · R = chơi lại · L = bật/tắt nhật ký event.
+ * H = bật/tắt tương phản cao (cũng có nút ở Menu và màn Tạm dừng; nhớ lựa chọn trong trình duyệt, ?hc=1 để bật sẵn).
+ * Cảnh báo luôn có CHỮ và dấu ⚠ trong khung viền (không chỉ dựa vào màu): thủy quái trong bán kính cảnh báo,
+ * oxy dưới 25%, khách đang chờ còn ≤ 10 giây kiên nhẫn (clarify P4-02). Hết điều kiện thì cảnh báo tự ẩn.
  * Esc / P = tạm dừng (gửi {"pause": true} — live.py ngừng bước tick thật, kể cả lúc đang ở Shop).
  * Shop (mode day): phím 1–9 gửi {"buy": "<mã>"} theo thứ tự danh sách, nút "Xong" gửi {"shop_done": true}.
  * Xem thử màn hình bằng dữ liệu mẫu: ?demo=shop | result | summary | pause | hold | kho (không gửi gì lên máy chủ).
@@ -102,8 +115,27 @@ async function flush() {
   inflight = false;
 }
 function keyName(e) { return e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase(); }
+
+// ---------- tương phản cao ----------
+let highContrast = false;
+try { highContrast = localStorage.getItem("chonoi.hc") === "1"; } catch (e) { /* trình duyệt chặn storage: mặc định tắt */ }
+if (new URLSearchParams(location.search).get("hc") === "1") highContrast = true;
+function applyContrast() {
+  document.body.classList.toggle("hc", highContrast);
+  document.querySelectorAll("[data-act=contrast]").forEach((b) => {
+    b.textContent = contrastLabel();
+    b.setAttribute("aria-pressed", String(highContrast));
+  });
+}
+function contrastLabel() { return "Tương phản cao: " + (highContrast ? "Bật" : "Tắt") + " (H)"; }
+function toggleContrast() {
+  highContrast = !highContrast;
+  try { localStorage.setItem("chonoi.hc", highContrast ? "1" : "0"); } catch (e) { /* bỏ qua */ }
+  applyContrast();
+}
 addEventListener("keydown", (e) => {
   const k = keyName(e);
+  if (k === "h" && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey) { toggleContrast(); return; }   // mọi màn
   const pauseKey = k === "escape" || k === "p";
   if (screen === "PAUSE") {
     if (pauseKey && !e.repeat) { e.preventDefault(); resume(); }
@@ -191,7 +223,7 @@ function startRun() {
 function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function card(body, buttons, hint) {
   const btns = buttons.map(([act, label, secondary]) =>
-    `<button type="button" data-act="${act}"${secondary ? ' class="secondary"' : ""}>${esc(label)}</button>`).join("");
+    `<button type="button" data-act="${act}"${secondary ? ' class="secondary"' : ""}${act === "contrast" ? ` aria-pressed="${highContrast}"` : ""}>${esc(label)}</button>`).join("");
   return `<div class="card">${body}${btns ? `<div class="btns">${btns}</div>` : ""}${hint ? `<p class="hint">${esc(hint)}</p>` : ""}</div>`;
 }
 function statsTable(rows) {
@@ -370,11 +402,12 @@ function eveningIntro() {
 
 const SCREENS = {
   MENU: () => card("<h1>Quán Ăn Chợ Nổi</h1><p>Sáng lặn bắt cá, hái rau · tối mở quán đãi khách.</p>",
-                   [["play", "Chơi"], ["exit", "Thoát", true]], "Chuột hoặc Tab + Enter để chọn"),
+                   [["play", "Chơi"], ["exit", "Thoát", true], ["contrast", contrastLabel(), true]], "Chuột hoặc Tab + Enter để chọn · H bật/tắt tương phản cao"),
   DAY_INTRO: morningIntro,
   EVENING_INTRO: eveningIntro,
   PAUSE: () => card("<h2>Tạm dừng</h2><p>Thời gian, oxy, kiên nhẫn của khách và giờ Shop đều đứng yên.</p>",
-                    [["resume", "Chơi tiếp"], ["restart", "Chơi lại", true], ["menu", "Về menu", true]], "Esc hoặc P để chơi tiếp"),
+                    [["resume", "Chơi tiếp"], ["restart", "Chơi lại", true], ["menu", "Về menu", true], ["contrast", contrastLabel(), true]],
+                    "Esc hoặc P để chơi tiếp · H bật/tắt tương phản cao"),
   SHOP: () => shopHtml(),
   DAY_RESULT: (d) => card(`<h2>Kết quả buổi tối${isDay() && dayNo(snap) !== null ? " · Ngày " + dayNo(snap) : ""}</h2>` + statsTable(resultRows(d)),
                           isDay() ? [["continue", "Tiếp tục"]] : [["restart", "Chơi lại"], ["menu", "Về menu", true]]),
@@ -389,6 +422,7 @@ const ACTIONS = {
   continue: () => setScreen(isDay() && snap.phase === "shop" ? "SHOP" : "PLAY"),   // mode day: kết quả tối → Shop
   menu: () => setScreen("MENU"),
   resume: () => resume(),
+  contrast: () => toggleContrast(),
   shop_done: () => { if (DEMO) { track.shopMsg = "(Xem thử) Đã gửi shop_done"; renderShop(); } else { sendRaw({ shop_done: true }); sendRaw({ shop_done: false }); } },   // nhấn rồi nhả: server bắt cạnh lên
 };
 function bindButtons() {
@@ -508,14 +542,33 @@ function setFont(size, bold) { ctx.font = (bold ? "bold " : "") + size + "px sys
 // Vẽ chữ (mặc định 18px), trả về bề ngang đã vẽ để xếp các mục cạnh nhau không đè.
 function text(s, x, y, o = {}) {
   setFont(o.size || HUD, o.bold);
-  ctx.fillStyle = o.color || "#e8eef2";
   ctx.textAlign = o.align || "left";
   ctx.textBaseline = o.base || "alphabetic";
   s = String(s);
   if (o.maxW) s = clip(s, o.maxW);
+  if (highContrast) {   // chữ trắng (cảnh báo vàng) có viền đen: đọc được trên mọi nền, không dựa vào màu riêng
+    ctx.strokeStyle = "#000"; ctx.lineWidth = 4; ctx.lineJoin = "round";
+    ctx.strokeText(s, x, y);
+    ctx.fillStyle = o.warn ? "#ffff00" : "#ffffff";
+  } else {
+    ctx.fillStyle = o.color || (o.warn ? "#ffb4ab" : "#e8eef2");
+  }
   ctx.fillText(s, x, y);
   return ctx.measureText(s).width;
 }
+// Khung cảnh báo: nền tối + viền (đỏ, hoặc vàng dày khi tương phản cao) + chữ có dấu ⚠. Trả về chiều cao đã vẽ.
+function warnLines(lines, x, y, maxW) {
+  if (!lines.length) return 0;
+  setFont(HUD, true);
+  const bw = Math.min(maxW, Math.max(...lines.map((ln) => ctx.measureText(ln).width)) + 20);
+  const top = y - 19, bh = lines.length * LH + 8;
+  ctx.fillStyle = highContrast ? "#000" : "rgba(70,8,8,.88)"; ctx.fillRect(x - 8, top, bw, bh);
+  ctx.strokeStyle = highContrast ? "#ffff00" : "#ff6b6b"; ctx.lineWidth = highContrast ? 3 : 2; ctx.strokeRect(x - 8, top, bw, bh);
+  lines.forEach((ln, i) => text(ln, x + 2, y + i * LH, { bold: true, warn: true, color: "#ffb4ab", maxW: bw - 16 }));
+  return bh;
+}
+const ANGRY_TICKS = 600;   // 10 giây cuối kiên nhẫn (60 tick/s), clarify P4-02
+const isAngry = (c) => !!c && c.state === "waiting" && num(c.patience_ticks_left) && c.patience_ticks_left <= ANGRY_TICKS;
 // Cắt chữ (thêm "…") cho vừa bề ngang maxW px, đo bằng font đang đặt — để chữ không tràn/đè lên nhau.
 function clip(s, maxW) {
   if (ctx.measureText(s).width <= maxW) return s;
@@ -607,8 +660,8 @@ function drawGather(w, h) {
   const danger = monsters.some((m) => near(m.pos, snap.monster_warning_radius));
   const hasOxy = p && num(p.oxygen_ticks) && num(p.oxygen_max_ticks) && p.oxygen_max_ticks > 0;
   const lowOxy = hasOxy && p.oxygen_ticks < p.oxygen_max_ticks * 0.25;
-  const notices = [];
-  if (danger) notices.push("Thủy quái!");
+  const notices = [], alerts = [];
+  if (danger) alerts.push("⚠ Thủy quái gần!");
   if (snap.current) {
     notices.push(snap.current.direction < 0 ? "Dòng lũ ←" : "Dòng lũ →");
   } else if ((snap.events || []).some((e) => e.phase === "gather" && e.day === snap.day && e.name === "current_warning"
@@ -619,14 +672,16 @@ function drawGather(w, h) {
     const eta = Math.ceil(r.arrival_tick / 60);
     notices.push(r.id + " · " + r.table_id + " · " + dishName(r.dish_id) + " · đến sau " + eta + " giây mở quán");
   }
-  if (lowOxy) notices.push(p.oxygen_ticks === 0 ? "Hết hơi!" : "Sắp hết oxy — lên thở!");
+  if (lowOxy) alerts.push(p.oxygen_ticks === 0 ? "⚠ Hết hơi!" : "⚠ Sắp hết oxy (" + Math.round(100 * p.oxygen_ticks / p.oxygen_max_ticks) + "%) — lên thở!");
   if (near(dp, dr)) notices.push("E · Cập bến");
   else if (p?.at_surface && (snap.nodes || []).some((n) => n.ready && near(n.pos, meta.interact_radius))) {
     notices.push("E · Hái nguyên liệu");
   }
-  const statusLines = wrapParts(notices, " · ", w - 28, HUD, true);
+  const alertLines = wrapParts(alerts, " · ", w - 44, HUD, true);
+  const infoLines = wrapParts(notices, " · ", w - 28, HUD, true);
+  const statusLines = alertLines.concat(infoLines);   // tổng số dòng để chừa chỗ cho bản đồ
   // Đáy màn hình (tính từ dưới lên): dòng phím (tự xuống dòng) → dòng giỏ (tự xuống dòng) → hàng ô giỏ.
-  const help = helpLines(w, "WASD/mũi tên bơi · E hái / cập bến · Space bắt cá · R chơi lại · L nhật ký");
+  const help = helpLines(w, "WASD/mũi tên bơi · E hái / cập bến · Space bắt cá · R chơi lại · L nhật ký · H tương phản");
   const holdItems = toItems(snap.hold), v12Hold = hasFresh(holdItems);
   const holdCount = num(snap.hold_count) ? snap.hold_count : (Array.isArray(snap.hold) ? snap.hold.length : null);
   const hasHold = holdCount !== null && num(snap.hold_capacity) && snap.hold_capacity > 0;
@@ -651,7 +706,7 @@ function drawGather(w, h) {
   const holdBase = helpTop - 8 - (holdLines.length - 1) * LH;           // baseline dòng giỏ đầu tiên
   const sz = hasHold ? Math.max(10, Math.min(30, (w - 28) / cap - 4)) : 0;
   const slotY = holdBase - 18 - 8 - sz;
-  const top = 78 + statusLines.length * LH, bottom = h - (hasHold ? slotY : helpTop) + 8;
+  const top = 78 + statusLines.length * LH + (alertLines.length ? 14 : 0), bottom = h - (hasHold ? slotY : helpTop) + 8;
   const s = Math.max(1, Math.min((w - 20) / (X + 4), (h - top - bottom) / (D + SKY + 1)));
   const ox = (w - s * (X + 4)) / 2 + 2 * s, oy = top + SKY * s;
   const sx = (x) => ox + x * s, sy = (d) => oy + d * s;
@@ -712,15 +767,23 @@ function drawGather(w, h) {
   const late = num(snap.time_left_ticks) && snap.time_left_ticks <= 30 * 60;
   let x = 14 + text("⏱ " + fmtTime(snap.time_left_ticks), 14, 34,
                     { size: 24, color: late ? "#ff6b6b" : "#e8eef2" }) + GAP;
-  if (hasOxy) {
-    bar(x, 12, 220, 28, p.oxygen_ticks / p.oxygen_max_ticks, lowOxy ? "#ef5350" : "#2b9fd8", "Oxy " + Math.ceil(p.oxygen_ticks / 60) + "s");
-    x += 220 + GAP;
+  if (hasOxy) {   // cửa sổ hẹp: thanh oxy co lại (tối thiểu 120 px) thay vì đẩy chữ ra ngoài màn hình
+    const oxyW = Math.max(120, Math.min(220, w - x - 14));
+    bar(x, 12, oxyW, 28, p.oxygen_ticks / p.oxygen_max_ticks, lowOxy ? "#ef5350" : "#2b9fd8", "Oxy " + Math.ceil(p.oxygen_ticks / 60) + "s");
+    x += oxyW + GAP;
   }
+  // Máu: ở hàng 1 nếu đủ chỗ, không thì xuống đầu hàng 2 (cùng cách với độ sâu).
+  let hpRow2 = null;
   if (p && num(p.hp) && num(p.hp_max) && p.hp_max > 0) {
     let hs = "";
     for (let i = 0; i < p.hp_max; i++) hs += i < p.hp ? "♥" : "♡";
-    x += text(hs, x, 35, { size: 26, color: "#ff6b81" }) + 8;
-    x += text(`Máu ${p.hp}/${p.hp_max}`, x, 33, { color: "#ffb3bf" }) + GAP;
+    const hpTxt = `Máu ${p.hp}/${p.hp_max}`;
+    setFont(26); const hw = ctx.measureText(hs).width + 8;
+    setFont(HUD); const tw = ctx.measureText(hpTxt).width;
+    if (x + hw + tw <= w - 14) {
+      x += text(hs, x, 35, { size: 26, color: "#ff6b81" }) + 8;
+      x += text(hpTxt, x, 33, { color: "#ffb3bf" }) + GAP;
+    } else hpRow2 = { hs, hpTxt };
   }
   // Độ sâu: ở hàng 1 nếu còn chỗ, cửa sổ hẹp thì xuống đầu hàng 2.
   const depthTxt = hasPos ? "Sâu " + Math.max(0, p.pos[1]).toFixed(1) + " m" : null;
@@ -729,15 +792,21 @@ function drawGather(w, h) {
   if (depthRow1) text(depthTxt, x, 33, { color: "#cfe8f5" });
   // HUD hàng 2: (độ sâu) · hồi bắt cá
   let x2 = 14;
+  if (hpRow2) {
+    x2 += text(hpRow2.hs, x2, 68, { size: 26, color: "#ff6b81" }) + 8;
+    x2 += text(hpRow2.hpTxt, x2, 66, { color: "#ffb3bf" }) + GAP;
+  }
   if (depthTxt && !depthRow1) x2 += text(depthTxt, x2, 66, { color: "#cfe8f5" }) + GAP;
 
   if (p && num(p.catch_cd_ticks) && p.catch_cd_ticks > 0) text("Hồi bắt cá " + (p.catch_cd_ticks / 60).toFixed(1) + "s", x2, 66, { color: "#9fb3c0" });
-  const statusColor = danger ? "#d6bcff" : lowOxy ? "#ff6b6b" : "#cfe8f5";
-  statusLines.forEach((line, i) => text(line, 14, 90 + i * LH, { color: statusColor, bold: true }));
-  if (danger) {
-    ctx.strokeStyle = "#c394ff";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(2, 2, w - 4, h - 4);
+  warnLines(alertLines, 22, 90, w - 28);
+  infoLines.forEach((line, i) => text(line, 14, 90 + (alertLines.length + i) * LH + (alertLines.length ? 8 : 0), { color: "#cfe8f5", bold: true }));
+  if (danger) {   // viền màn hình: thêm nét đứt khi tương phản cao để không chỉ dựa vào màu
+    ctx.strokeStyle = highContrast ? "#ffff00" : "#c394ff";
+    ctx.lineWidth = highContrast ? 6 : 4;
+    if (highContrast) ctx.setLineDash([14, 8]);
+    ctx.strokeRect(3, 3, w - 6, h - 6);
+    ctx.setLineDash([]);
   }
   // giỏ (khoang) dưới — số trong giỏ: ưu tiên hold_count của snapshot, không có thì đếm mảng hold.
   if (hasHold) {
@@ -847,7 +916,7 @@ function drawSidePanel(x0, y0, pw, yMax) {
   const rows = list.map((c) => {
     const st = CUSTOMER_STATE[c.state] || (c.state ? String(c.state) : "?");
     const pat = num(c.patience_ticks_left) ? Math.ceil(c.patience_ticks_left / 60) + "s" : "–";
-    const right = st + " " + pat;
+    const right = (isAngry(c) ? "⚠ sắp giận" : st) + " " + pat;
     const colW = inner - tblW;   // bề ngang cột món (bên phải cột bàn)
     const name = dishName(c.dish_id) || "?";
     setFont(HUD);
@@ -856,7 +925,7 @@ function drawSidePanel(x0, y0, pw, yMax) {
     const dish = sameLine ? [name] : wrapWords(name, colW);
     const status = sameLine ? [] : wrapWords(right, colW);
     const col = c.state === "waiting" ? "#f4b6c2" : c.state === "eating" ? "#a5d6a7" : "#e8eef2";
-    return { c, right, dish, status, sameLine, col, hgt: (dish.length + status.length) * LH + gap };
+    return { c, right, dish, status, sameLine, col, angry: isAngry(c), hgt: (dish.length + status.length) * LH + gap };
   });
   // dàn chiều cao
   let used = pad + top.length * LH + (top.length && hasCust ? 10 : 0) + (hasCust ? LH + 4 : 0);
@@ -869,7 +938,8 @@ function drawSidePanel(x0, y0, pw, yMax) {
   const more = rows.length - shown.length;
   if (hasCust && !list.length) used += LH;
   if (more) used += LH;
-  ctx.fillStyle = "rgba(0,0,0,.5)"; ctx.fillRect(x0, y0, pw, used + pad - 4);
+  ctx.fillStyle = highContrast ? "#000" : "rgba(0,0,0,.5)"; ctx.fillRect(x0, y0, pw, used + pad - 4);
+  if (highContrast) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(x0, y0, pw, used + pad - 4); }
   // vẽ
   let y = y0 + pad + 16;
   top.forEach((ln) => { text(ln, x0 + pad, y, { color: "#cfd8dc", maxW: inner }); y += LH; });
@@ -881,8 +951,9 @@ function drawSidePanel(x0, y0, pw, yMax) {
   shown.forEach((r) => {
     text(String(r.c.table_id ?? "?"), x0 + pad, y, { bold: true, maxW: tblW - 4 });
     r.dish.forEach((ln, i) => text(ln, x0 + pad + tblW, y + i * LH));
-    if (r.sameLine) text(r.right, x0 + pw - pad, y, { align: "right", color: r.col });
-    else r.status.forEach((ln, i) => text(ln, x0 + pad + tblW, y + (r.dish.length + i) * LH, { color: r.col }));
+    const o = r.angry ? { warn: true, bold: true, color: "#ff8a80" } : { color: r.col };
+    if (r.sameLine) text(r.right, x0 + pw - pad, y, Object.assign({ align: "right" }, o));
+    else r.status.forEach((ln, i) => text(ln, x0 + pad + tblW, y + (r.dish.length + i) * LH, o));
     y += r.hgt;
   });
   if (more) text(`+${more} khách nữa`, x0 + pad, y, { color: "#9fb3c0" });
@@ -907,8 +978,15 @@ function drawQuan(w, h) {
   const stockParts = quanStockLine();
   const kho = stockParts ? wrapParts(stockParts, " · ", w - 28, HUD) : [];
   kho.forEach((ln, i) => text(ln, 14, khoY + i * LH, { color: "#cfd8dc" }));
-  const help = helpLines(w, "WASD/mũi tên đi · E tương tác (bếp / bàn) · R chơi lại · L nhật ký");
-  const top = (kho.length ? khoY + (kho.length - 1) * LH : khoY - LH) + 18, bottom = help.length * LH + 20;   // đáy chừa đủ số dòng phím
+  const help = helpLines(w, "WASD/mũi tên đi · E tương tác (bếp / bàn) · R chơi lại · L nhật ký · H tương phản");
+  // Khách đang chờ còn ≤ 10 giây: cảnh báo chữ ngay dưới dòng kho, tự ẩn khi khách được phục vụ hoặc rời đi.
+  const angry = (Array.isArray(snap.customers) ? snap.customers : []).filter(isAngry)
+    .sort((a, b) => a.patience_ticks_left - b.patience_ticks_left)
+    .map((c) => "⚠ Bàn " + (c.table_id ?? "?") + " sắp giận (" + Math.ceil(c.patience_ticks_left / 60) + "s)");
+  const angryLines = wrapParts(angry, " · ", w - 44, HUD, true);
+  const angryY = (kho.length ? khoY + kho.length * LH : khoY) + 10;
+  const angryH = angryLines.length ? warnLines(angryLines, 22, angryY, w - 28) + 6 : 0;
+  const top = (kho.length ? khoY + (kho.length - 1) * LH : khoY - LH) + 18 + angryH, bottom = help.length * LH + 20;   // đáy chừa đủ số dòng phím
   // khung bên phải (bếp, tay, khách) + bản đồ quán bên trái
   const hasPanel = Array.isArray(snap.customers) || Array.isArray(snap.stoves) || "hand" in snap;
   const panelW = hasPanel ? Math.round(Math.min(w * 0.45, Math.max(300, Math.min(420, w * 0.32)))) : 0;
@@ -949,6 +1027,11 @@ function drawQuan(w, h) {
         const fraction = c.patience_ticks_left / (c.reservation_id ? 3600 : patMax);
         bar(cx - 0.8 * s, cy + 0.65 * s, 1.6 * s, 5, fraction, fraction < 0.25 ? "#e57373" : "#ffd180");
       }
+      if (isAngry(c)) {   // chữ + viền quanh khách, không chỉ đổi màu thanh kiên nhẫn
+        ctx.strokeStyle = highContrast ? "#ffff00" : "#ff5252"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, 0.55 * s + 4, 0, Math.PI * 2); ctx.stroke();
+        if (s >= 28) text("⚠ sắp giận", cx, cy - 0.55 * s - 8, { align: "center", bold: true, warn: true, color: "#b71c1c" });
+      }
     }
   });
   // người chơi
@@ -975,7 +1058,7 @@ function drawFps(w, h) {
 function frame() {
   requestAnimationFrame(frame);  // đặt trước để lỗi vẽ không làm dừng vòng lặp
   const [w, h] = fit();
-  ctx.fillStyle = "#10161c"; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = highContrast ? "#000" : "#10161c"; ctx.fillRect(0, 0, w, h);
   if (screen !== "EXIT") {
     if (snap && snap.demo && !snap.draw) {
       text("Xem thử màn hình bằng dữ liệu mẫu (?demo=" + DEMO + ")", w / 2, 36, { align: "center", color: "#9fb3c0" });
@@ -992,6 +1075,20 @@ function frame() {
 }
 // ---------- xem thử: ?demo=shop | result | summary | pause (dữ liệu mẫu, không gọi máy chủ) ----------
 const DEMO_SNAPS = {
+  // Phase 4 · cảnh báo (thêm &hc=1 để xem ở tương phản cao). Ca đối chứng: cảnh báo phải ẩn.
+  "canh-bao-sang": { demo: true, draw: true, mode: "gather", phase: "gather", time_left_ticks: 6000, monster_warning_radius: 6,
+    player: { pos: [30, 6], at_surface: false, oxygen_ticks: 300, oxygen_max_ticks: 1800, hp: 2, hp_max: 3 },
+    monsters: [{ id: "M1", pos: [34, 7] }], hold_capacity: 12, hold_count: 2, hold: ["ca_linh", "ca_loc"] },
+  "doi-chung-sang": { demo: true, draw: true, mode: "gather", phase: "gather", time_left_ticks: 6000, monster_warning_radius: 6,
+    player: { pos: [30, 2], at_surface: false, oxygen_ticks: 1700, oxygen_max_ticks: 1800, hp: 3, hp_max: 3 },
+    monsters: [{ id: "M1", pos: [80, 20] }], hold_capacity: 12, hold_count: 2, hold: ["ca_linh", "ca_loc"] },
+  "canh-bao-toi": { demo: true, draw: true, mode: "quan", phase: "quan", time_left_ticks: 7000, money: 85, reputation: 3, score: 385,
+    player: { pos: [8, 5] }, hand: null, stock: { ca_linh: 2, bong_dien_dien: 1 },
+    stoves: [{ id: "B1", pos: [2, 8], state: "cooking", cook_ticks_left: 240, dish: { dish_id: "ca_loc_nuong_trui" } }],
+    tables: [{ id: "T1", pos: [12, 2], customer_id: "C1" }, { id: "T2", pos: [9, 8], customer_id: "C2" }, { id: "T3", pos: [13, 8], customer_id: "C3" }],
+    customers: [{ id: "C1", table_id: "T1", state: "waiting", order_status: "assigned", dish_id: "ca_loc_nuong_trui", patience_ticks_left: 480 },
+                { id: "C2", table_id: "T2", state: "waiting", order_status: "reserved", dish_id: "goi_bong_sung", patience_ticks_left: 2400 },
+                { id: "C3", table_id: "T3", state: "eating", order_status: "served", dish_id: "lau_ca_linh_dien_dien", patience_ticks_left: 0, eat_ticks_left: 300 }] },
   shop: { demo: true, mode: "day", phase: "shop", day: 2, money: 180, earned: 260, reputation: 3.4, time_left_ticks: 1500,
           upgrades: { binh_oxy: 1, ao_lan: 0, gio_lon: 2 }, active_upgrades: { binh_oxy: 1, ao_lan: 0, gio_lon: 2 },
           stock: [{ id: "I7", kind: "ca_linh", fresh: 71.25 }, { id: "I9", kind: "keo_neo", fresh: 28 }],
@@ -1003,6 +1100,7 @@ const DEMO_SNAPS = {
             shift: { served: 7, paid: 7, left: 2, left_closing: 1, tips: 18, shift_earned: 142 } },
   summary: { demo: true, mode: "day", phase: "shop", finished: true, reason: "days_complete", days_completed: 5, money: 410, earned: 1260, reputation: 4.2 },
   pause: { demo: true, mode: "day", phase: "gather", day: 1 },
+  menu: { demo: true, mode: "gather", phase: "gather" },
   // Kho v1.2: giỏ có cá thể fresh 30 (vẫn tươi) và 29.99 (ươn); kho quán có cá thể đang giữ và cá thể ươn.
   hold: { demo: true, draw: true, mode: "gather", phase: "gather", contract_version: "1.2", freshness: { spoiled_below: 30 },
           time_left_ticks: 7200, player: { pos: [30, 4], at_surface: false, oxygen_ticks: 1500, oxygen_max_ticks: 1800, hp: 3, hp_max: 3 },
@@ -1018,10 +1116,12 @@ const DEMO_SNAPS = {
          customers: [{ id: "C1", table_id: "T1", state: "waiting", order_status: "reserved", dish_id: "lau_ca_linh_dien_dien",
                        reserved: ["I1", "I4"], patience_ticks_left: 2000 }] },
 };
+applyContrast();
 if (DEMO && DEMO_SNAPS[DEMO]) {
   stopped = true;   // không poll máy chủ
   snap = DEMO_SNAPS[DEMO];
-  const first = { shop: "SHOP", result: "DAY_RESULT", summary: "SUMMARY", pause: "PAUSE", hold: "PLAY", kho: "PLAY" }[DEMO];
+  const first = { shop: "SHOP", result: "DAY_RESULT", summary: "SUMMARY", pause: "PAUSE", hold: "PLAY", kho: "PLAY",
+                  "canh-bao-sang": "PLAY", "doi-chung-sang": "PLAY", "canh-bao-toi": "PLAY", menu: "MENU" }[DEMO];
   if (first === "PAUSE") pauseReturn = "PLAY";
   setScreen(first, snap.shift);
   if (first === "DAY_RESULT") ACTIONS.continue = () => { snap = DEMO_SNAPS.shop; setScreen("SHOP"); };
