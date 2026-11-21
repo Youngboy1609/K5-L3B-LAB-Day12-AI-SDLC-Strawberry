@@ -1,5 +1,10 @@
 # Retro nhóm
 
+## Rà hành động đã chốt ở Phase 2 (mở đầu retro)
+
+- **Hành động đã chốt:** trước khi tách nhánh Phase 3, thống nhất payload mẫu và ca chuyển pha dựa trên tag `phase-2`, rồi smoke trên cây đã ghép trước khi merge.
+- **Kết quả:** đã có ca tích hợp qua kho, Day và live; `docs/verification/phase-3.md` ghi kết quả JSONL Day seed 42 giống từng byte và test liên quan. Kiểm tra ban đầu chưa bao phủ mọi đường khởi tạo live. HUD/Live Day còn dùng version mặc định v1.1 dù khai v1.2. Test live Day với fixture v1.2 bắt được lỗi trước khi chốt Phase 3. Bổ sung truyền version và ca hồi quy sớm hơn là việc cần làm.
+
 ## Phase 2 (nhanh)
 
 - Điều tốt — Giao diện dùng chung giữa headless và bản chơi giúp nhóm kiểm chuyển pha, pause và Shop ngay khi ghép. Fixture ba tick phát hiện thiếu runtime sớm, ca 5 ngày xác minh các nâng cấp từ ngày kế tiếp.
@@ -13,8 +18,7 @@
 - Khi đổi phiên bản, giữ manifest cũ trong fixture hồi quy và thêm ca chung cho cả CLI lẫn live ngay từ lúc thống nhất cách truyền version.
 
 ## Phase 4 (cuối)
-- Rà lại hành động Phase 2: đã làm chưa? vì sao?
-- Điều tốt / điều tệ:
-- Số liệu: số commit theo người, cách đọc code của nhau, token theo người:
-- Một lần AI sai và cách nhóm phát hiện:
-- Nếu làm lại, đổi gì:
+- **Phạm vi bằng chứng tại handoff:** lát soak được tích hợp ở `a623026` (`adaaf3a` trong nhánh này). Commit ghi nhận hai lượt seed 7 hoàn tất 10/10 ngày, 0 crash, kết quả gameplay bằng nhau khi bỏ `duration_s`, suite 204 passed và regression manifest v1.1 189 passed. Các số liệu này lấy từ commit đó, chưa chạy lại trong lần cập nhật hồ sơ.
+- **Còn chờ:** benchmark 30 giây và `bench.json`, HUD/contrast mode cùng ba cảnh báo, clone sạch, ZIP, tag `phase-4`, GitHub Release `v1.0.0`, ma trận Phase 4 và kiểm chứng trên SHA bàn giao. Chưa kết luận đạt các mục này.
+- **Lỗi AI đã xác minh:** ở Phase 3, đường Live Day khởi tạo với version mặc định v1.1 trong khi contract là v1.2. Fixture v1.2 qua test live phát hiện thiếu truyền `contract_version`; kiểm tra và kết quả được ghi trong `test_live_day.py` và `docs/verification/phase-3.md`.
+- **Việc tiếp theo:** hoàn thành từng AC trên cùng ứng viên, lưu artifact và lệnh thực chạy, rồi rà đóng góp từng thành viên từ commit/bằng chứng trước khi viết kết luận retro cuối. Chưa ghi đánh giá chéo, số liệu cá nhân hoặc hỗ trợ đồng đội nếu chưa có bằng chứng.
