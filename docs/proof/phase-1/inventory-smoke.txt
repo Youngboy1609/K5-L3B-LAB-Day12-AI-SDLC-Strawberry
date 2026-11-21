@@ -1,0 +1,18 @@
+Date: 2026-11-21 (Asia/Ho_Chi_Minh)
+Tested commit: b2f749ce0db177a583464e18e6102ab6df138edc
+Branch: nguyen_minh_quan
+Python: 3.15.2
+Command: PYTHONPATH=tests:. /Library/Frameworks/Python.framework/Versions/3.15/bin/python3 -m unittest test_smoke_p1.Integration -v
+Exit code: 0
+
+test_inv_01_gather_writes_inventory_quan_reads_it (test_smoke_p1.Integration.test_inv_01_gather_writes_inventory_quan_reads_it)
+Ví dụ smoke test trong PRD-0 mục G: cập bến ở tick 0, quán đọc kho đúng nội dung. ... ok
+test_inv_01_not_written_when_tick_limit_first (test_smoke_p1.Integration.test_inv_01_not_written_when_tick_limit_first) ... ok
+test_inv_bad_schema_exit_2 (test_smoke_p1.Integration.test_inv_bad_schema_exit_2) ... ok
+test_inventory_and_scenario_stock_conflict (test_smoke_p1.Integration.test_inventory_and_scenario_stock_conflict) ... ok
+test_inventory_flags_mode_mismatch_exit_2 (test_smoke_p1.Integration.test_inventory_flags_mode_mismatch_exit_2) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.616s
+
+OK

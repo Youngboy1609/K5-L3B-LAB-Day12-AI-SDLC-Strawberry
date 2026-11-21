@@ -90,6 +90,7 @@ def try_catch(sim, events):
         return False
     for _ in range(count):
         sim.hold.append(fish["kind"])
+    sim.fish.remove(fish)
     sim.catch_cd_ticks = int(round(sim.t["catch_cooldown_s"] * TICK))
     events.append(("fish_caught", {"fish_id": fish["id"], "kind": fish["kind"], "count": count}))
     return True
