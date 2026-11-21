@@ -24,14 +24,14 @@ class GatherSim:
     mode = "gather"
     phase = "gather"
 
-    def __init__(self, tuning, scenario, streams, ids, *, day=1, advance_fish=None):
+    def __init__(self, tuning, scenario, streams, ids, *, day=None, advance_fish=None):
         t = tuning["gather"]
         self.t = t
-        self.day = day
+        self.phase2 = day is not None
         self.tick_hz = tuning["tick_hz"]
         self.advance_fish = advance_fish
         self.monster_rules = t.get("monster_rules", DEFAULT_RULES)
-        self.monsters = build_monsters(self.monster_rules, scenario, day, t["bounds"])
+        self.monsters = build_monsters(self.monster_rules, scenario, day, t["bounds"]) if self.phase2 else []
         self.rng = streams
         self.ids = ids
         p = scenario.get("player", {})
@@ -82,7 +82,7 @@ class GatherSim:
                        "invuln_ticks": self.invuln_ticks, "catch_cd_ticks": self.catch_cd_ticks,
                        "at_surface": self._at_surface()},
             "hold": self.hold, "hold_count": len(self.hold),
-            "monsters": [{k: m[k] for k in ("id", "pos", "state", "recoil_ticks")} for m in self.monsters],
+            **({"monsters": [dict(m) for m in self.monsters]} if self.phase2 else {}),
             "hold_capacity": self.t["hold_capacity"],
             "nodes": [{"id": n["id"], "pos": n["pos"], "kind": n["kind"],
                        "ready": n["regrow_ticks"] == 0, "regrow_ticks": n["regrow_ticks"]}
