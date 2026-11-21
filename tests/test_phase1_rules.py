@@ -5,6 +5,7 @@ không đánh dấu skip/expectedFailure. Chưa kiểm payload event đang chờ
 """
 
 import json
+import math
 import unittest
 
 from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
@@ -104,6 +105,18 @@ class GatherRules(unittest.TestCase):
         self.assertEqual([f["id"] for f in final["fish"]], ["F1"])
         self.assertEqual(final["player"]["catch_cd_ticks"], 0)
         self.assertEqual(len(events(rows, "hold_full")), 1)
+
+    def test_caught_school_cannot_be_caught_again_after_cooldown(self):
+        cooldown = round(self.g["catch_cooldown_s"] * self.hz)
+        rows, _ = self.run_case({
+            "fish": [{"id": "F1", "kind": "ca_linh", "pos": [50, 5]}],
+        }, ticks=cooldown + 1, inputs=(
+            {"tick": 0, "catch": True}, {"tick": 1, "catch": False},
+            {"tick": cooldown, "catch": True},
+        ))
+        self.assertEqual([e["tick"] for e in events(rows, "fish_caught")], [1])
+        self.assertEqual(snapshots(rows)[1]["fish"], [])
+        self.assertEqual(snapshots(rows)[-1]["hold"], ["ca_linh"] * self.g["fish_yield"]["ca_linh"])
 
     def test_catch_on_last_tick_is_in_exported_inventory(self):
         kind = "ca_linh"
@@ -252,7 +265,8 @@ class QuanRules(unittest.TestCase):
         patience = round(self.q["patience_s"] * self.hz)
         remaining = patience - (tick + 1 - self.arrival)
         tipped = remaining / patience >= self.q["tip_min_patience_ratio"]
-        expected = self.dish["price"] * (1 + self.q["tip_rate"] if tipped else 1)
+        price = self.dish["price"]
+        expected = price + (math.floor(price * self.q["tip_rate"]) if tipped else 0)
         self.assertAlmostEqual(final["money"], expected)
         self.assertAlmostEqual(final["earned"], expected)
         reputation = self.q["reputation_initial"] + (self.q["tip_reputation"] if tipped else 0)
