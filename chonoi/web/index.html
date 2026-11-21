@@ -39,7 +39,7 @@
  * Trường nào snapshot chưa có thì bỏ qua (nhóm viết luật tới đâu, hình hiện tới đó). Hình khối tạm, thay bằng đồ họa của nhóm.
  * Phím: WASD / mũi tên = di chuyển · E = interact · Space = catch · R = chơi lại · L = bật/tắt nhật ký event.
  * Esc / P = tạm dừng (gửi {"pause": true} — live.py ngừng bước tick thật, kể cả lúc đang ở Shop).
- * Shop (mode day): phím 1–9 mua nâng cấp theo thứ tự, nút "Xong" gửi {"shop_done": true}.
+ * Shop (mode day): phím 1–9 gửi {"buy": "<mã>"} theo thứ tự danh sách, nút "Xong" gửi {"shop_done": true}.
  * Xem thử màn hình bằng dữ liệu mẫu: ?demo=shop | result | summary | pause (không gửi gì lên máy chủ).
  * Các màn MENU / giới thiệu / kết quả chỉ ở lớp trình bày (trình duyệt); headless chỉ có pha gameplay.
  */
@@ -55,8 +55,10 @@ const down = new Set();
 const MOVE_KEYS = { w: "u", arrowup: "u", s: "d", arrowdown: "d", a: "l", arrowleft: "l", d: "r", arrowright: "r" };
 let queue = [], inflight = false, lastSent = "";
 
+// mode day: vẽ và điều khiển theo pha đang chạy (gather / quan / shop).
+function viewOf(s) { return s.mode === "day" ? s.phase : s.mode; }
 function currentInput() {
-  const mode = snap ? snap.mode : "gather";
+  const mode = snap ? viewOf(snap) : "gather";
   const dx = (down.has("r") ? 1 : 0) - (down.has("l") ? 1 : 0);
   let dy = (down.has("d") ? 1 : 0) - (down.has("u") ? 1 : 0);   // gather: xuống = d dương
   if (mode === "quan") dy = -dy;                                // quan: lên (bắc) = z dương
@@ -158,7 +160,8 @@ async function poll() {
 // Mode gather/quan độc lập: MENU → chơi; quán kết thúc (event quan_end) → DAY_RESULT.
 // Mode day: đổi pha theo snap.phase (gather → quan → shop). quan → shop: DAY_RESULT rồi SHOP.
 // Esc/P ở PLAY hoặc SHOP → PAUSE (server ngừng tick), Esc/P lần nữa quay về đúng màn cũ.
-// GIẢ ĐỊNH P2 (docs/clarify.md P2-02, phase-2-tasks.md): tên trường day chưa có trên main, xem các hàm đọc bên dưới.
+// Trường đọc theo chonoi/sim/day.py + runner.DaySession: day, upgrades {mã: cấp}, active_upgrades, days_completed,
+// time_left_ticks; giá và cấp tối đa ở snap.day_meta.upgrades (live.py gửi kèm từ tuning.day).
 let screen = "MENU";
 let introTimer = null;
 const INTRO_MS = 4000;
@@ -200,7 +203,6 @@ function pickNum(d, keys) { for (const k of keys) if (num(d[k])) return d[k]; re
 function shiftOf(s) {
   if (!s) return null;
   if (s.shift && typeof s.shift === "object") return s.shift;
-  if (s.quan && s.quan.shift && typeof s.quan.shift === "object") return s.quan.shift;   // GIẢ ĐỊNH P2: day lồng snapshot quan
   return null;
 }
 function resultRows(d) {
@@ -235,8 +237,8 @@ function summaryRows() {
   return rows;
 }
 // ---------- Shop (mode day) ----------
-// GIẢ ĐỊNH P2: snap.upgrades là object {id: cấp} hoặc {id: {level, max_level, price}} hoặc mảng [{id, level, max_level, price}].
-// Giá có thể nằm ở snap.shop.prices[id]. Thời gian Shop: snap.shop.time_left_ticks (hoặc snap.time_left_ticks).
+// snap.upgrades = {mã: cấp đã mua}; bảng giá: snap.day_meta.upgrades[mã] = {max_level, levels: {cấp: {price, effects}}}.
+// Nâng cấp mua trong Shop chỉ áp từ ngày kế (active_upgrades).
 function dayNo(s) {
   if (!s) return null;
   if (num(s.day)) return s.day;
@@ -251,33 +253,38 @@ function moneyOf(s) {
   if (s.day && num(s.day.money)) return s.day.money;
   return null;
 }
+function levelSpec(spec, level) {
+  const lv = spec && spec.levels;
+  if (!lv) return null;
+  return Array.isArray(lv) ? lv[level] || null : lv[String(level)] || null;
+}
 function shopItems() {
   const s = snap || {};
-  const raw = s.upgrades || (s.shop && s.shop.upgrades) || {};
-  const prices = (s.shop && s.shop.prices) || {};
-  const list = Array.isArray(raw) ? raw : Object.keys(raw).sort().map((id) => {
-    const v = raw[id];
-    return (v && typeof v === "object") ? Object.assign({ id }, v) : { id, level: v };
-  });
-  return list.filter((u) => u && u.id).map((u) => {
-    const level = num(u.level) ? u.level : 0;
-    const max = num(u.max_level) ? u.max_level : null;
-    const price = num(u.price) ? u.price : (num(u.next_price) ? u.next_price : (num(prices[u.id]) ? prices[u.id] : null));
-    return { id: String(u.id), level, max, price, maxed: max !== null && level >= max };
+  const owned = (s.upgrades && typeof s.upgrades === "object") ? s.upgrades : {};
+  const catalog = (s.day_meta && s.day_meta.upgrades && typeof s.day_meta.upgrades === "object") ? s.day_meta.upgrades : {};
+  const ids = Array.from(new Set([...Object.keys(catalog), ...Object.keys(owned)])).sort();
+  return ids.map((id) => {
+    const spec = catalog[id] || {};
+    const level = num(owned[id]) ? owned[id] : 0;
+    const max = num(spec.max_level) ? spec.max_level : null;
+    const next = levelSpec(spec, level + 1);
+    const price = next && num(next.price) ? next.price : null;
+    const name = typeof spec.name === "string" ? spec.name : null;
+    return { id, name, level, max, price, maxed: max !== null && level >= max };
   });
 }
-const UPGRADE_NAME = {};   // điền tên tiếng Việt khi có bảng nâng cấp chính thức (P2-01)
+const UPGRADE_NAME = {};   // tên hiển thị tiếng Việt: điền khi có bảng nâng cấp chính thức (P2-01)
 const upName = (id) => UPGRADE_NAME[id] || id.replace(/_/g, " ");
 function shopHtml() {
   const s = snap || {};
   const money = moneyOf(s), day = dayNo(s);
-  const tl = s.shop && num(s.shop.time_left_ticks) ? s.shop.time_left_ticks : (num(s.time_left_ticks) ? s.time_left_ticks : null);
+  const tl = num(s.time_left_ticks) ? s.time_left_ticks : null;
   const items = shopItems();
   const rows = items.map((u, i) => {
     const lv = "Cấp " + u.level + (u.max !== null ? "/" + u.max : "");
     const btn = u.maxed ? `<button type="button" class="secondary" disabled>Tối đa</button>`
       : `<button type="button" data-act="buy:${esc(u.id)}">Mua${u.price !== null ? " " + u.price + "k" : ""}</button>`;
-    return `<tr><td>${i + 1}. ${esc(upName(u.id))}</td><td>${esc(lv)}</td><td class="btns">${btn}</td></tr>`;
+    return `<tr><td>${i + 1}. ${esc(u.name || upName(u.id))}</td><td>${esc(lv)}</td><td class="btns">${btn}</td></tr>`;
   }).join("");
   const head = `<h2>Shop${day !== null ? " · hết Ngày " + day : ""}</h2>` +
     `<p>Tiền: <b>${money !== null ? money + "k" : "?"}</b>${tl !== null ? " · còn " + esc(fmtTime(tl)) : ""}</p>`;
@@ -288,13 +295,13 @@ function shopHtml() {
 }
 function buy(id) {
   if (DEMO) {   // xem thử: tự cộng cấp để thấy giao diện đổi
-    const u = DEMO_SNAPS.shop.upgrades[id];
-    if (u && u.level < u.max_level && DEMO_SNAPS.shop.money >= u.price) {
-      DEMO_SNAPS.shop.money -= u.price; u.level++; track.shopMsg = "Đã mua " + upName(id) + " lên cấp " + u.level;
-    } else track.shopMsg = "Không mua được " + upName(id) + " (thiếu tiền hoặc đã tối đa)";
+    const u = shopItems().find((x) => x.id === id), d = DEMO_SNAPS.shop;
+    if (u && !u.maxed && u.price !== null && d.money >= u.price) {
+      d.money -= u.price; d.upgrades[id] = u.level + 1; track.shopMsg = "Đã mua " + upName(id) + " lên cấp " + (u.level + 1);
+    } else track.shopMsg = "Không mua được " + upName(id) + (u && u.maxed ? " (đã tối đa)" : " (thiếu tiền)");
     renderShop(); return;
   }
-  sendRaw({ buy: id });   // GIẢ ĐỊNH P2: input mua là {"buy": "<id upgrade>"}
+  sendRaw({ buy: id });
 }
 let shopShown = "";
 function renderShop() {
@@ -334,7 +341,7 @@ const ACTIONS = {
   continue: () => setScreen(isDay() && snap.phase === "shop" ? "SHOP" : "PLAY"),   // mode day: kết quả tối → Shop
   menu: () => setScreen("MENU"),
   resume: () => resume(),
-  shop_done: () => { if (DEMO) { track.shopMsg = "(Xem thử) Đã gửi shop_done"; renderShop(); } else sendRaw({ shop_done: true }); },
+  shop_done: () => { if (DEMO) { track.shopMsg = "(Xem thử) Đã gửi shop_done"; renderShop(); } else { sendRaw({ shop_done: true }); sendRaw({ shop_done: false }); } },   // nhấn rồi nhả: server bắt cạnh lên
 };
 function bindButtons() {
   screenEl.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => {
@@ -370,8 +377,8 @@ function onSnapshot(s) {
     if (e.name === "served") track.served++;
     else if (e.name === "customer_left") { if (d.reason === "closing") track.leftClosing++; else track.left++; }
     else if (e.name === "quan_end") quanEnd = d;
-    else if (e.name === "buy_success") track.shopMsg = "Đã mua " + upName(String(d.upgrade || "")) + (num(d.level) ? " lên cấp " + d.level : "");   // GIẢ ĐỊNH P2-02
-    else if (e.name === "buy_failed") track.shopMsg = "Không mua được " + upName(String(d.buy || "")) + (d.reason ? " (" + d.reason + ")" : "");
+    else if (e.name === "buy_success") track.shopMsg = "Đã mua " + upName(String(d.upgrade || "")) + (num(d.level) ? " lên cấp " + d.level : "");
+    else if (e.name === "buy_failed") track.shopMsg = "Không mua được " + upName(String(d.buy || "")) + " (" + ({ money: "thiếu tiền", max_level: "đã tối đa", unsupported: "không có trong Shop" }[d.reason] || d.reason || "?") + ")";
   });
   const sh = shiftOf(s);
   if (sh) track.shift = sh;
@@ -784,7 +791,8 @@ function frame() {
     if (snap && snap.demo) {
       text("Xem thử màn hình bằng dữ liệu mẫu (?demo=" + DEMO + ")", w / 2, 36, { align: "center", color: "#9fb3c0" });
     } else if (snap) {
-      if (snap.mode === "quan") drawQuan(w, h); else drawGather(w, h);
+      const view = viewOf(snap);
+      if (view === "quan") drawQuan(w, h); else if (view === "gather") drawGather(w, h);   // pha shop: chỉ màn Shop
       if (showLog) eventLog(w, h);
       overlay(w, h);
     } else {
@@ -795,9 +803,12 @@ function frame() {
 }
 // ---------- xem thử: ?demo=shop | result | summary | pause (dữ liệu mẫu, không gọi máy chủ) ----------
 const DEMO_SNAPS = {
-  shop: { demo: true, mode: "day", phase: "shop", day: 2, money: 180, earned: 260, reputation: 3.4, shop: { time_left_ticks: 1500 },
-          upgrades: { binh_oxy: { level: 1, max_level: 3, price: 60 }, gio_lon: { level: 0, max_level: 2, price: 80 },
-                      bep_them: { level: 0, max_level: 2, price: 120 }, ban_them: { level: 2, max_level: 2 } } },
+  shop: { demo: true, mode: "day", phase: "shop", day: 2, money: 180, earned: 260, reputation: 3.4, time_left_ticks: 1500,
+          upgrades: { binh_oxy: 1, ao_lan: 0, gio_lon: 2 }, active_upgrades: { binh_oxy: 1, ao_lan: 0, gio_lon: 2 },
+          day_meta: { upgrades: {
+            binh_oxy: { max_level: 3, levels: { 1: { price: 40 }, 2: { price: 60 }, 3: { price: 90 } } },
+            ao_lan: { max_level: 2, levels: { 1: { price: 50 }, 2: { price: 120 } } },
+            gio_lon: { max_level: 2, levels: { 1: { price: 30 }, 2: { price: 70 } } } } } },
   result: { demo: true, mode: "day", phase: "shop", day: 2, money: 180, reputation: 3.4,
             shift: { served: 7, paid: 7, left: 2, left_closing: 1, tips: 18, shift_earned: 142 } },
   summary: { demo: true, mode: "day", phase: "shop", finished: true, reason: "days_complete", days_completed: 5, money: 410, earned: 1260, reputation: 4.2 },
