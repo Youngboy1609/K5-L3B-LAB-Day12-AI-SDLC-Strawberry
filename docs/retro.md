@@ -18,7 +18,7 @@
 - Khi đổi phiên bản, giữ manifest cũ trong fixture hồi quy và thêm ca chung cho cả CLI lẫn live ngay từ lúc thống nhất cách truyền version.
 
 ## Phase 4 (cuối)
-- **Phạm vi bằng chứng tại handoff:** lát soak được tích hợp ở `a623026` (`adaaf3a` trong nhánh này). Commit ghi nhận hai lượt seed 7 hoàn tất 10/10 ngày, 0 crash, kết quả gameplay bằng nhau khi bỏ `duration_s`, suite 204 passed và regression manifest v1.1 189 passed. Các số liệu này lấy từ commit đó, chưa chạy lại trong lần cập nhật hồ sơ.
-- **Còn chờ:** benchmark 30 giây và `bench.json`, HUD/contrast mode cùng ba cảnh báo, clone sạch, ZIP, tag `phase-4`, GitHub Release `v1.0.0`, ma trận Phase 4 và kiểm chứng trên SHA bàn giao. Chưa kết luận đạt các mục này.
+- **Phạm vi đã kiểm** Cây thử có manifest v1.3 qua 208 test và 4 ca từ PR #19 về khai báo lệnh, JSONL, kho và soak. Hai lượt seed 7 hoàn tất 10/10 Ngày, 0 crash và cho cùng kết quả gameplay. Cây manifest v1.1 qua 193 test.
+- **Hồ sơ đang chờ** Benchmark 30 giây và `bench.json`, ba cảnh báo trong chế độ tương phản cao, clone sạch, ZIP, tag `phase-4`, GitHub Release `v1.0.0` và ma trận trên commit bàn giao.
 - **Lỗi AI đã xác minh:** ở Phase 3, đường Live Day khởi tạo với version mặc định v1.1 trong khi contract là v1.2. Fixture v1.2 qua test live phát hiện thiếu truyền `contract_version`; kiểm tra và kết quả được ghi trong `test_live_day.py` và `docs/verification/phase-3.md`.
 - **Việc tiếp theo:** hoàn thành từng AC trên cùng ứng viên, lưu artifact và lệnh thực chạy, rồi rà đóng góp từng thành viên từ commit/bằng chứng trước khi viết kết luận retro cuối. Chưa ghi đánh giá chéo, số liệu cá nhân hoặc hỗ trợ đồng đội nếu chưa có bằng chứng.
