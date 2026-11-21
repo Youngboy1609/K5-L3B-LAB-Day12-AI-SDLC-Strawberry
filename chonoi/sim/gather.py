@@ -13,6 +13,7 @@ import math
 from ..ids import sort_by_id
 from ..inventory import hold_to_items
 from .gather_actions import advance_nodes, try_catch, try_harvest
+from .gather_monsters import DEFAULT_RULES, advance_monsters, build_monsters
 from .ramp import ramp_velocity
 
 TICK = 60.0
@@ -23,9 +24,14 @@ class GatherSim:
     mode = "gather"
     phase = "gather"
 
-    def __init__(self, tuning, scenario, streams, ids):
+    def __init__(self, tuning, scenario, streams, ids, *, day=1, advance_fish=None):
         t = tuning["gather"]
         self.t = t
+        self.day = day
+        self.tick_hz = tuning["tick_hz"]
+        self.advance_fish = advance_fish
+        self.monster_rules = t.get("monster_rules", DEFAULT_RULES)
+        self.monsters = build_monsters(self.monster_rules, scenario, day, t["bounds"])
         self.rng = streams
         self.ids = ids
         p = scenario.get("player", {})
@@ -55,7 +61,7 @@ class GatherSim:
         # Đàn cá đứng yên ở phase này. Cá bơi / sinh thêm là việc của phase sau.
         self.fish = [{"id": f["id"], "kind": f["kind"], "pos": [float(c) for c in f["pos"]],
                       "heading_deg": f.get("heading_deg", 0)} for f in src_fish]
-        for coll in (self.nodes, self.fish):
+        for coll in (self.nodes, self.fish, self.monsters):
             for e in coll:
                 ids.reserve(e["id"])
         self.money = 0
@@ -76,6 +82,7 @@ class GatherSim:
                        "invuln_ticks": self.invuln_ticks, "catch_cd_ticks": self.catch_cd_ticks,
                        "at_surface": self._at_surface()},
             "hold": self.hold, "hold_count": len(self.hold),
+            "monsters": [{k: m[k] for k in ("id", "pos", "state", "recoil_ticks")} for m in self.monsters],
             "hold_capacity": self.t["hold_capacity"],
             "nodes": [{"id": n["id"], "pos": n["pos"], "kind": n["kind"],
                        "ready": n["regrow_ticks"] == 0, "regrow_ticks": n["regrow_ticks"]}
@@ -96,6 +103,8 @@ class GatherSim:
         was_at_surface = self._at_surface()
         self._move(inp)
         self._update_survival(was_at_surface, events)
+        if not self.done:
+            advance_monsters(self, events)
         if self.done:
             return events
         # 3. interact: bến trước, rồi hái
@@ -111,6 +120,8 @@ class GatherSim:
         # 5. hết giờ
         if self.time_left_ticks <= 0:
             self._finish("time", events)
+        elif self.advance_fish is not None:
+            self.advance_fish(self, events)
         return events
 
     # --- tiện ích ---------------------------------------------------------------
@@ -143,10 +154,13 @@ class GatherSim:
         self.hp -= 1
         events.append(("choke", {"hp": self.hp}))
         if self.hp == 0:
-            lost = self.hold[::-1]
-            self.hold.clear()
-            events.append(("faint", {"lost": lost}))
-            self._finish("fainted", events)
+            self._faint(events)
+
+    def _faint(self, events):
+        lost = self.hold[::-1]
+        self.hold.clear()
+        events.append(("faint", {"lost": lost}))
+        self._finish("fainted", events)
 
     def _in_dock(self) -> bool:
         return math.dist(self.pos, self.t["dock_pos"]) <= self.t["dock_radius"]
