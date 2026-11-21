@@ -1,12 +1,6 @@
-# TruongThuHa — phản tư cá nhân
+# TruongThuHa — phản tư cá nhân (≤ 200 từ)
 
-## Phase 1
-- **Tôi đã làm:** HUD quán và HUD buổi sáng trong `chonoi/web/index.html` ([f421f18](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/f421f18), [73d583e](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/73d583e)), sửa theo review ([b788ae8](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/b788ae8)); README chạy từ clone sạch ([a43581d](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/a43581d)). Gộp qua [PR #5](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/pull/5).
-- **Review:** nhận review của Nghĩa trên [PR #5](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/pull/5), sửa lọc kho theo `order_status` và trạng thái khách `waiting`/`eating`, trả lời kèm ảnh chơi thử. Trong Phase 1 tôi chưa review PR của bạn khác.
-- **AI sai ở đâu và tôi phát hiện thế nào:**
-  1. Claude Code để dòng "Kho khả dụng" dài bị cắt mất "bông súng" và cắt tên món trong bảng khách. Tôi phát hiện khi chơi thử với màn dựng sẵn và so từng trường.
-  2. HUD dựng theo snapshot mẫu đoán trước nên lọc kho theo `state` thay vì `order_status`. Nghĩa phát hiện khi review; tôi merge `main` và thử lại với code thật (test 61/61 OK).
-- **Điều tôi học được:** HUD chỉ đọc snapshot nên phải đối chiếu tên trường với code thật; luôn chơi thử trước khi commit; làm trên nhánh riêng, tạo PR và kiểm tra đúng repo đích trước khi gửi.
-
-## Phase 2 (đang làm, nhánh `phase2/day-hud`)
-- Menu Chơi/Thoát, khung màn chuyển cảnh, cảnh báo oxy, chữ HUD ≥ 18px, bộ đếm FPS ([7b159ff](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/7b159ff)); sửa chữ đè/cắt ở cửa sổ hẹp ([651010f](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/651010f)). Đang chờ Nghĩa chốt hợp đồng để làm Shop và pause.
+- **Tôi đã làm.** P1: HUD quán, HUD sáng và README chạy từ clone sạch ([PR #5](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/pull/5), [b788ae8](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/b788ae8)). P2: menu, màn chuyển cảnh, pause Esc/P dừng tick thật, Shop/Kết quả/Tổng kết và `live --mode day` ([PR #13](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/pull/13), [d4f903c](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/d4f903c)). P3: giỏ và kho theo cá thể, độ tươi, loại hàng ươn và ID đang giữ ([PR #18](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/pull/18), [1764157](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/commit/1764157)). P4: tương phản cao (phím H) và cảnh báo có chữ cho thủy quái, oxy dưới 25%, khách còn ≤ 10 giây ([nhánh](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/tree/phase4/accessible-hud)).
+- **Tôi đã review.** Nhận review của Nghĩa trên PR #5 và sửa theo. Chưa review PR bạn khác; tự kiểm HUD bằng `?demo=` ở 1280×720 và 390×700, gửi ảnh cho Minh Quân.
+- **AI sai ở đâu và tôi phát hiện thế nào.** P1: AI đoán sai tên trường snapshot (`state` thay vì `order_status`), Nghĩa phát hiện khi review. P2: AI viết Shop theo tên trường giả định; tôi đối chiếu lại `day.py` sau khi merge. P3: fresh là phân số nên live lỗi khi xuất JSON; test `Fraction` bắt được trước khi ghép.
+- **Điều tôi học được.** Đối chiếu tên trường với code thật, thử cửa sổ hẹp, kiểm repo đích trước khi tạo PR.
