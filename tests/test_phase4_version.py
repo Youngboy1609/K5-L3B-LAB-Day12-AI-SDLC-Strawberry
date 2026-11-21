@@ -29,13 +29,14 @@ class Phase4VersionCompatibility(unittest.TestCase):
         self.assertEqual(loaded["contract_version"], "1.3")
         self.assertEqual(effective_contract_version(loaded["contract_version"]), "1.2")
         for key in ("bench_cmd", "soak_cmd"):
-            invalid = dict(manifest)
-            invalid[key] = "  "
-            with tempfile.TemporaryDirectory() as temp:
-                path = Path(temp) / "contract.json"
-                path.write_text(json.dumps(invalid), encoding="utf-8")
-                with self.subTest(key=key), self.assertRaises(BadInput):
-                    load_contract(path)
+            for value in ("  ", 'python "unterminated'):
+                invalid = dict(manifest)
+                invalid[key] = value
+                with tempfile.TemporaryDirectory() as temp:
+                    path = Path(temp) / "contract.json"
+                    path.write_text(json.dumps(invalid), encoding="utf-8")
+                    with self.subTest(key=key, value=value), self.assertRaises(BadInput):
+                        load_contract(path)
 
     def test_headless_v12_and_v13_are_byte_identical(self):
         for mode, ticks in (("gather", "60"), ("quan", "60"), ("day", "22200")):

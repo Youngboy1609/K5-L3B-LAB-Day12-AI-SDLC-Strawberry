@@ -3,6 +3,7 @@
 import json
 import math
 import os
+import shlex
 
 from .errors import BadInput
 from .inventory import NODE_KINDS_P1, NODE_KINDS_P2
@@ -38,6 +39,12 @@ def load_contract(path=DEFAULT_PATH) -> dict:
         for key in ("bench_cmd", "soak_cmd"):
             value = c.get(key)
             if not isinstance(value, str) or not value.strip():
+                raise BadInput(f"{key} phải là chuỗi lệnh không rỗng ở contract v1.3")
+            try:
+                parts = shlex.split(value)
+            except ValueError as e:
+                raise BadInput(f"{key} không phải lệnh hợp lệ: {e}")
+            if not parts:
                 raise BadInput(f"{key} phải là chuỗi lệnh không rỗng ở contract v1.3")
     tuning = c.get("tuning")
     if effective_version == "1.2":

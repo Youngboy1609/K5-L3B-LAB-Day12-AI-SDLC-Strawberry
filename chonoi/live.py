@@ -69,7 +69,8 @@ class LiveGame:
         runtime_version = effective_contract_version(self.contract_version)
         if self.mode == "day":
             mode, tuning, scenario, seed, _ = self._args
-            self.session = DaySession(tuning, scenario, seed, self.days, contract_version=runtime_version)
+            day_version = "1.2" if runtime_version == "1.2" else "1.1"
+            self.session = DaySession(tuning, scenario, seed, self.days, contract_version=day_version)
             self.inputs = LiveInputs(buttons=BUTTONS_V11, allow_buy=True)
             self.events = self.session._wrap(0, self.session.initial_events)  # day_start, day_plan, phase_start
             self.served_dishes = {}
