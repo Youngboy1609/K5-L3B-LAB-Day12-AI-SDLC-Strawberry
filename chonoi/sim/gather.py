@@ -1,23 +1,18 @@
-"""Buổi sáng — Lặn & Hái (`gather`). KHUNG: bơi, chặn mép, đồng hồ, cập bến, xuất kho.
+"""Buổi sáng — Lặn & Hái (`gather`).
 
 Mặt cắt dòng sông nhìn NGANG: vị trí `[x, d]` (x sang phải, `d` độ sâu hướng xuống, d = 0 là mặt nước).
 `move = [x, d]`: thành phần thứ hai DƯƠNG = bơi xuống. Hướng mặt là góc từ +x, dương = xuống.
 
-Mô phỏng xử lý bơi, chặn mép, oxy, ngạt, ngất, đồng hồ và cập bến. Khi ngất, đồ rơi theo thứ tự
-nhặt mới nhất trước và giỏ rỗng trước khi kết thúc lượt. Runner ghi file kho khi lượt kết thúc.
-
-Nhóm viết tiếp (đúng thứ tự một bước trong PRD mục 13.8, "Gather"):
-  TODO(nhóm, lát 2): hái + bắt cá + cập bến + kho
-      - hái nút ở mặt nước (gather, hold_full), nút mọc lại (node_regrown đã có phần đếm ngược)
-      - bắt đàn cá bằng `catch` (fish_caught, hold_full, hồi chiêu catch_cd_ticks, chỉ khi dưới nước)
-      - cập bến xét TRƯỚC hái (đã có); ghi kho đúng một lần do runner lo
-Các tính năng của phase sau chưa nằm trong khung này.
+Mỗi tick chạy bộ đếm, nút mọc lại, di chuyển và sinh tồn, rồi mới xét cập bến,
+hái, bắt cá và hết giờ. Khi ngất, đồ rơi theo thứ tự nhặt mới nhất trước và giỏ
+rỗng trước khi kết thúc lượt. Runner ghi file kho khi lượt kết thúc.
 """
 
 import math
 
 from ..ids import sort_by_id
 from ..inventory import hold_to_items
+from .gather_actions import advance_nodes, try_catch, try_harvest
 from .ramp import ramp_velocity
 
 TICK = 60.0
@@ -96,12 +91,8 @@ class GatherSim:
         self.time_left_ticks = max(0, self.time_left_ticks - 1)
         self.invuln_ticks = max(0, self.invuln_ticks - 1)
         self.catch_cd_ticks = max(0, self.catch_cd_ticks - 1)
-        for n in sort_by_id(self.nodes):
-            if n["regrow_ticks"] > 0:
-                n["regrow_ticks"] -= 1
-                if n["regrow_ticks"] == 0:
-                    events.append(("node_regrown", {"node_id": n["id"]}))
-        # 2. bơi + chặn mép
+        advance_nodes(self, events)
+        # 2. bơi, chặn mép và sinh tồn
         was_at_surface = self._at_surface()
         self._move(inp)
         self._update_survival(was_at_surface, events)
@@ -112,11 +103,11 @@ class GatherSim:
             if self._in_dock():
                 self._finish("docked", events)
                 return events
-            # TODO(nhóm, lát 2): chỉ khi ở mặt nước: hái nút `ready` gần nhất trong interact_radius
-            #   (id nhỏ khi bằng nhau): gather / hold_full; đặt regrow_ticks cho nút.
+            if self._at_surface():
+                try_harvest(self, events)
         # 4. bắt cá
         if inp.pressed("catch"):
-            pass  # TODO(nhóm, lát 2): chỉ khi catch_cd_ticks == 0 và dưới nước: fish_caught / hold_full.
+            try_catch(self, events)
         # 5. hết giờ
         if self.time_left_ticks <= 0:
             self._finish("time", events)
