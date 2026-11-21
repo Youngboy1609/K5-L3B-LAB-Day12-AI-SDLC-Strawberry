@@ -27,8 +27,10 @@ Số liệu chỉ đọc từ tuning (`sim.t`, `sim.menu`); không dùng ngẫu 
 """
 
 import math
+from fractions import Fraction
 
 from ..ids import id_key, sort_by_id
+from ..inventory import item_payload
 
 TICK_HZ = 60
 
@@ -42,8 +44,11 @@ def _clamp_rep(sim, value):
     return round(min(sim.t["reputation_max"], max(sim.t["reputation_min"], value)), 9)
 
 
-def _dish_payload(d) -> dict:
-    return {"order_id": d["order_id"], "dish_id": d["dish_id"]}
+def _dish_payload(d, *, include_price=False) -> dict:
+    payload = {"order_id": d["order_id"], "dish_id": d["dish_id"]}
+    if include_price:
+        payload["base_price"] = d["base_price"]
+    return payload
 
 
 # ---------------------------------------------------------------------------------------------
@@ -60,7 +65,7 @@ def advance_stoves(sim, events):
             if s["cook_ticks_left"] == 0:
                 s["state"] = "ready"
                 s["ready_ticks"] = 0
-                events.append(("dish_ready", {"stove_id": s["id"], **_dish_payload(s["dish"])}))
+                events.append(("dish_ready", {"stove_id": s["id"], **_dish_payload(s["dish"], include_price=sim.item_stock)}))
     # burn_s = null ở preset v1.0 -> không có món cháy trong Phase 1.
 
 
@@ -106,21 +111,35 @@ def _interact_stove(sim, s, events):
             return
         # Tồn vật lý CHỈ đổi ở đây: trừ đúng phần giữ, một lần.
         reserved = c["reserved"]
-        for k, n in reserved.items():
-            sim.stock[k] -= n
-            assert sim.stock[k] >= 0, f"phần giữ {k} vượt tồn — fixture phải bị chặn mã 2"
-            if sim.stock[k] == 0:
-                sim.stock.pop(k)
-        c["reserved"] = {}
         c["order_status"] = "assigned"
         dish = sim.menu[c["dish_id"]]
-        s["dish"] = {"order_id": c["id"], "dish_id": c["dish_id"], "base_price": dish["price"]}
+        if sim.item_stock:
+            by_id = sim.stock_by_id
+            items = [by_id[ident] for ident in reserved]
+            sim.stock[:] = [item for item in sim.stock if item["id"] not in set(reserved)]
+            c["reserved"] = []
+            price = (dish["price"] * sum((item["fresh"] for item in items), Fraction()) /
+                     (100 * len(items))).__floor__()
+            payload_items = [item_payload(item) for item in sorted(items, key=lambda item: (item["kind"], id_key(item["id"]))) ]
+        else:
+            for k, n in reserved.items():
+                sim.stock[k] -= n
+                assert sim.stock[k] >= 0, f"phần giữ {k} vượt tồn — fixture phải bị chặn mã 2"
+                if sim.stock[k] == 0:
+                    sim.stock.pop(k)
+            c["reserved"] = {}
+            items = [kind for kind in sorted(reserved) for _ in range(reserved[kind])]
+            price = dish["price"]
+            payload_items = items
+        s["dish"] = {"order_id": c["id"], "dish_id": c["dish_id"], "base_price": price}
         s["state"] = "cooking"
         s["cook_ticks_left"] = _ticks(dish["cook_s"])
         s["ready_ticks"] = 0
-        items = [kind for kind in sorted(reserved) for _ in range(reserved[kind])]
-        events.append(("cook_started", {"stove_id": s["id"], "customer_id": c["id"], **_dish_payload(s["dish"]), "items": items,
-                                        "cook_ticks": s["cook_ticks_left"]}))
+        data = {"stove_id": s["id"], "customer_id": c["id"], **_dish_payload(s["dish"]), "items": payload_items,
+                "cook_ticks": s["cook_ticks_left"]}
+        if sim.item_stock:
+            data["base_price"] = price
+        events.append(("cook_started", data))
     elif s["state"] == "ready":
         if sim.hand is not None:  # tay chứa đúng một món (carry_limit = 1 ở v1.0)
             return
@@ -129,7 +148,7 @@ def _interact_stove(sim, s, events):
         s["state"] = "idle"
         s["cook_ticks_left"] = 0
         s["ready_ticks"] = 0
-        events.append(("dish_picked", {"stove_id": s["id"], **_dish_payload(sim.hand)}))
+        events.append(("dish_picked", {"stove_id": s["id"], **_dish_payload(sim.hand, include_price=sim.item_stock)}))
     # cooking: chưa xong, không làm gì.
 
 
@@ -178,15 +197,15 @@ def _discard_order_dishes(sim, order_id, events):
     """Dọn món thuộc đơn ở bếp hoặc trên tay. Không hoàn nguyên liệu đã nấu."""
     for s in sim.stoves:
         if s["dish"] is not None and s["dish"]["order_id"] == order_id:
-            events.append(("dish_discarded", {"where": s["id"], **_dish_payload(s["dish"])}))
+            events.append(("dish_discarded", {"where": s["id"], **_dish_payload(s["dish"], include_price=sim.item_stock)}))
             s.update(state="idle", dish=None, cook_ticks_left=0, ready_ticks=0)
     if sim.hand is not None and sim.hand["order_id"] == order_id:
-        events.append(("dish_discarded", {"where": "hand", **_dish_payload(sim.hand)}))
+        events.append(("dish_discarded", {"where": "hand", **_dish_payload(sim.hand, include_price=sim.item_stock)}))
         sim.hand = None
 
 
 def _remove(sim, c, events):
-    c["reserved"] = {}  # nhả phần giữ thô (tồn vật lý không đổi)
+    c["reserved"] = [] if sim.item_stock else {}  # nhả phần giữ thô (tồn vật lý không đổi)
     _discard_order_dishes(sim, c["id"], events)
     sim.customers.remove(c)
 
