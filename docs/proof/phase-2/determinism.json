@@ -1,0 +1,30 @@
+{
+  "base_head": "96acf2907b1909c2cef630fcb5b0885d25752335",
+  "working_tree": "QA changes uncommitted",
+  "python": "3.15.2 (v3.15.2:5e58eaad7c5, Oct 25 2026, 14:19:34) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+  "runs": [
+    {
+      "mode": "gather",
+      "seed": 42,
+      "ticks": 600,
+      "snapshot_every": 1,
+      "sha256": [
+        "6faf51b270ce0490af1b2e0b6c49150a0daf908ca9a24ac6447049467da00a7b",
+        "6faf51b270ce0490af1b2e0b6c49150a0daf908ca9a24ac6447049467da00a7b"
+      ],
+      "identical": true
+    },
+    {
+      "mode": "quan",
+      "seed": 42,
+      "ticks": 600,
+      "snapshot_every": 1,
+      "sha256": [
+        "9b855bd636a03b79f4933fa0adb485f345c5395cd1106ef76ada3e24d3c816db",
+        "9b855bd636a03b79f4933fa0adb485f345c5395cd1106ef76ada3e24d3c816db"
+      ],
+      "identical": true
+    }
+  ]
+}

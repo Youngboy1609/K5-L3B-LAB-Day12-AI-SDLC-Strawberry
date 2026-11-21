@@ -8,6 +8,8 @@
 - Headless quán: `python3 -m chonoi.headless --mode quan --seed 1 --ticks 600 --out quan.jsonl`. Đổi mode thành `gather` để chạy buổi sáng.
 - Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather`. Mở địa chỉ in ra, dùng WASD, E, Space, R. Đổi mode thành `quan` để thử buổi tối.
 
+- QA Phase 2: `PYTHONPATH=tests:. python3 -m unittest test_phase2_regression test_phase2_day -v`. Smoke `day` hiện báo chưa đạt cho tới khi triển khai v1.1; bằng chứng ở `docs/proof/phase-2/`.
+
 ## Cấu trúc & quy ước
 - (Starter Python là TÙY CHỌN; nhóm có thể dùng ngôn ngữ khác nếu giữ Test Contract.) Khung do giảng viên cấp: `chonoi/{headless,inputs,scenario,contract,rng,ids,jsonl,inventory,runner,live}.py` và `chonoi/web/`. Hạn chế sửa; nếu phải sửa thì báo cả nhóm và ghi lại lý do.
 - Luật chơi của nhóm: `chonoi/sim/gather.py`, `chonoi/sim/quan.py` (tìm `TODO(nhóm)`).
