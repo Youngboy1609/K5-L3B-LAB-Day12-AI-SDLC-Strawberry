@@ -1,14 +1,16 @@
 # Bằng chứng QA Phase 4
 
-Mốc mã, môi trường, ma trận và lỗi: [verification](../../verification/phase-4.md).
+Môi trường, kết quả đã đo và phạm vi kiểm có trong [ma trận Phase 4](../../verification/phase-4.md). Kết quả trước khi tích hợp nằm tại [PR #19](https://github.com/Youngboy1609/K5-L3B-LAB-Day12-AI-SDLC-Strawberry/pull/19).
 
 ```sh
-PYTHONPATH=tests:. python3 -m unittest test_phase4_contract -v
+python3 -m pip install -r requirements-benchmark.txt
+python3 -m playwright install chromium
 PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
 python3 docs/proof/phase-4/run_v11_regression.py
-PYTHONPATH=tests:. python3 -m unittest test_flood_current test_quan_reservations -v
+python3 -m chonoi.benchmark --seed 42 --duration 30 --out bench.json
+python3 -m chonoi.soak --seed 7 --days 10 --out soak.json
 ```
 
-`run_v11_regression.py` gọi script Phase 3 trong cây tạm, chỉ loại test release v1.3 vừa thêm; không đổi script/lược bỏ ca hồi quy cũ. Lệnh Phase 3 trực tiếp nay sẽ thu thêm test P4, nên không thể coi toàn bộ discovery trên manifest v1.1 là test v1.1.
+PowerShell đặt `$env:PYTHONPATH = 'tests;.'` và dùng `python`. Benchmark và ca QA tương ứng cần Playwright và Chromium. `run_v11_regression.py` dùng manifest v1.1 trong cây tạm và bỏ riêng ca nghiệm thu manifest v1.3.
 
-`v12-positive.log` là ca kho của `ReleaseContract` chạy với manifest tạm đặt v1.2 để chứng minh fixture hợp lệ. Ba mode trong ca so byte cũng chạy v1.2 trước v1.3. Log dài, JSONL và ZIP thử giữ ở `/tmp/chonoi-p4-qa/`; các log kết quả được lưu tại đây để review. Chưa có `bench.json`/`soak.json` vì module và command chưa được ghép; không tạo tệp giả.
+Đối chiếu hai lượt soak bằng `days`, `days_completed`, `crashes` và `results`. Thời gian thực nằm riêng ở `duration_s`. `bench.json` lưu số đo theo môi trường kiểm.

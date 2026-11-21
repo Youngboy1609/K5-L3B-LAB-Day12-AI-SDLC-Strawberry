@@ -14,6 +14,7 @@
 - QA điều phối Phase 3: `PYTHONPATH=tests:. python3 -m unittest test_phase3_day_version -v`.
 - QA Phase 3: `PYTHONPATH=tests:. python3 -m unittest test_phase3_integration -v`. Test v1.2 chạy trên cây tạm. Regression v1.1: `python3 docs/proof/phase-3/run_regression.py`. Xem `docs/verification/phase-3.md`.
 - Soak Phase 4: `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`. Kiểm riêng bằng `PYTHONPATH=tests:. python3 -m unittest test_phase4_soak -v`.
+- Benchmark Phase 4: `python3 -m chonoi.benchmark --seed 42 --duration 30 --out bench.json`. Môi trường đo dùng Playwright và Chromium. Cách chạy và kiểm contract ở `docs/proof/phase-4/`.
 
 ## Cấu trúc & quy ước
 - (Starter Python là TÙY CHỌN; nhóm có thể dùng ngôn ngữ khác nếu giữ Test Contract.) Khung do giảng viên cấp: `chonoi/{headless,inputs,scenario,contract,rng,ids,jsonl,inventory,runner,live}.py` và `chonoi/web/`. Hạn chế sửa; nếu phải sửa thì báo cả nhóm và ghi lại lý do.
