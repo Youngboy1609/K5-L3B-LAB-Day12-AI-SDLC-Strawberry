@@ -37,4 +37,5 @@
 - Sáng tạo thêm được khuyến khích nhưng phải tắt ở headless (xem README, mục "Tự do sáng tạo").
 
 ## Skills / hooks của nhóm
-- (Ghi tên và khi nào dùng; tối thiểu 2 skill/hook/command nhóm tự viết, đặt ở `.agents/skills/` hoặc tương đương.)
+- `python3 tools/check_team.py` kiểm cấu trúc `TEAM.md` và quy mô nhóm trước khi nộp.
+- `python3 docs/proof/phase-3/run_regression.py` chạy lại test với manifest v1.1 trong thư mục tạm sau khi đổi schema.

@@ -88,7 +88,7 @@ class Phase3VersionBoundary(unittest.TestCase):
             return {"id": ids.new("I"), "kind": kind, "fresh": fresh}
 
         with patch("chonoi.sim.day.GatherSim", side_effect=gather):
-            with patch("chonoi.inventory.new_item", new_item, create=True):
+            with patch("chonoi.sim.day.new_item", new_item):
                 sim = DaySim(load_contract()["tuning"], fixture, 42, days=2, contract_version="1.2")
                 sim.day = 2
                 sim._build_day()

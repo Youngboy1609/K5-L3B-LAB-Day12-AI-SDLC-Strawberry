@@ -8,7 +8,8 @@ import json
 import os
 import unittest
 
-from helpers import (Workdir, close, events, frames, read_jsonl, run_headless, snapshots, write_json)
+from helpers import (Workdir, close, events, frames, read_jsonl, snapshots, write_json)
+from helpers import run_legacy_headless as run_headless
 
 
 def last_pos(rows):

@@ -8,7 +8,8 @@ import json
 import math
 import unittest
 
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import Workdir, events, frames, read_jsonl, snapshots, write_json
+from helpers import run_legacy_headless as run_headless
 
 
 class GatherRules(unittest.TestCase):

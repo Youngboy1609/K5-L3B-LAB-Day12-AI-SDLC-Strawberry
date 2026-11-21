@@ -1,14 +1,17 @@
 {
-  "contract_version": "1.1",
+  "contract_version": "1.2",
   "team": "strawberry",
   "team_size": 6,
   "build_cmd": "true",
   "run_cmd": "python3 -m chonoi.live --mode day",
   "headless_cmd": "python3 -m chonoi.headless",
-  "extensions": [],
+  "extensions": ["flood_current", "reservations"],
+  "freshness": {"initial": 100, "gather_decay_per_s": 0.5, "quan_decay_per_s": 0.25, "spoiled_below": 30},
+  "reservations": {"count": 2, "table_hold_s": 30, "price_multiplier": 1.5, "failed_reputation_delta": -1},
   "tuning": {
     "tick_hz": 60,
     "gather": {
+      "current": {"interval_ticks": 900, "duration_ticks": 180, "warning_ticks": 120, "min_depth": 4, "speed": 2},
       "duration_s": 180,
       "bounds": {"x": [0, 100], "d": [0, 30]},
       "dock_pos": [2, 0],

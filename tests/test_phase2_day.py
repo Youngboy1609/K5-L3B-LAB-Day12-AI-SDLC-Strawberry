@@ -8,7 +8,8 @@ from unittest.mock import patch
 from chonoi.contract import load_contract
 from chonoi.headless import main
 
-from helpers import ROOT, Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import ROOT, Workdir, events, frames, read_jsonl, snapshots, write_json
+from helpers import run_legacy_headless as run_headless
 
 FIXTURES = Path(ROOT) / "docs/proof/phase-2/fixtures"
 

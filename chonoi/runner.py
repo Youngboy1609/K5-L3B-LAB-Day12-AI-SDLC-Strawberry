@@ -49,6 +49,8 @@ class Session:
         self.contract_version = contract_version
         self.sim = build_sim(mode, tuning, scenario, seed, inventory, contract_version=contract_version)
         self.tick = 0
+        self.initial_events = [{"type": "event", "tick": 0, "phase": mode, "name": name, "data": data}
+                               for name, data in getattr(self.sim, "initial_events", ())]
 
     @property
     def done(self) -> bool:
@@ -131,8 +133,7 @@ class DaySession:
         self.tick = 0
         self.sim_tick = 0
         self.paused = False
-        self.initial_events = [("gather", "day_start", {}), ("gather", "day_plan", self.sim.plan),
-                               ("gather", "phase_start", {"phase": "gather"})]
+        self.initial_events = self.sim.morning_events()
 
     @property
     def done(self):
@@ -203,6 +204,9 @@ def run(mode, tuning, scenario, seed, frames, ticks, out_path, snapshot_every, i
             for row in sess._wrap(0, sess.initial_events):
                 w.write(row)
         w.write(sess.snapshot())  # tick 0: sau khi dựng scenario, trước mọi input
+        if mode != "day":
+            for row in sess.initial_events:
+                w.write(row)
         last_snapped = 0
         while sess.tick < ticks and not sess.done:
             inp = player.advance(sess.tick)  # bước k đọc input có tick == k

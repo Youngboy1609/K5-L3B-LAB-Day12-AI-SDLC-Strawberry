@@ -1,6 +1,7 @@
 """Đọc game.contract.json và kiểm dải hợp lệ của tuning P1 (PRD mục 13.2, Test Contract)."""
 
 import json
+import math
 import os
 
 from .errors import BadInput
@@ -43,9 +44,26 @@ def load_contract(path=DEFAULT_PATH) -> dict:
         tuning = dict(tuning) if isinstance(tuning, dict) else tuning
         if isinstance(tuning, dict):
             tuning["freshness"] = dict(freshness)
+            if "reservations" in c:
+                tuning["reservations"] = _validate_reservations(c["reservations"])
     validate_tuning(tuning, version)
     c["tuning"] = tuning
     return c
+
+
+def _validate_reservations(rules):
+    keys = {"count", "table_hold_s", "price_multiplier", "failed_reputation_delta"}
+    if not isinstance(rules, dict) or set(rules) != keys:
+        raise BadInput("reservations cần count, table_hold_s, price_multiplier và failed_reputation_delta")
+    if type(rules["count"]) is not int or not 1 <= rules["count"] <= 2:
+        raise BadInput("reservations.count phải là 1 hoặc 2")
+    for key in ("table_hold_s", "price_multiplier", "failed_reputation_delta"):
+        value = rules[key]
+        if not _num(value) or not math.isfinite(value):
+            raise BadInput(f"reservations.{key} phải là số hữu hạn")
+    if rules["table_hold_s"] < 0 or rules["price_multiplier"] <= 0 or rules["failed_reputation_delta"] >= 0:
+        raise BadInput("reservations cần thời gian giữ bàn không âm, hệ số giá dương và mức giảm uy tín âm")
+    return dict(rules)
 
 
 def _int_between(name, v, lo, hi):
@@ -76,6 +94,17 @@ def _validate_gather(g, contract_version):
     _between("gather.duration_s", g.get("duration_s"), 60, 600)
     _bounds("gather", g.get("bounds"), ("x", "d"))
     b = g["bounds"]
+    if contract_version == "1.2" and "current" in g:
+        current = g["current"]
+        if not isinstance(current, dict) or set(current) != {
+                "interval_ticks", "duration_ticks", "warning_ticks", "min_depth", "speed"}:
+            raise BadInput("tuning.gather.current cần interval_ticks, duration_ticks, warning_ticks, min_depth và speed")
+        _int_between("gather.current.interval_ticks", current["interval_ticks"], 1, 36000)
+        interval = current["interval_ticks"]
+        _int_between("gather.current.duration_ticks", current["duration_ticks"], 1, interval)
+        _int_between("gather.current.warning_ticks", current["warning_ticks"], 0, interval - 1)
+        _between("gather.current.min_depth", current["min_depth"], 0, b["d"][1])
+        _between("gather.current.speed", current["speed"], 0, 10)
     _between("gather.dock_radius", g.get("dock_radius"), 0.5, 5)
     _between("gather.interact_radius", g.get("interact_radius"), 0.5, 5)
     _between("gather.catch_radius", g.get("catch_radius"), 0.5, 5)

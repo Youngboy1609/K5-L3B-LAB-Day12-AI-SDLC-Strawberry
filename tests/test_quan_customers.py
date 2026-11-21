@@ -1,7 +1,8 @@
 import unittest
 from pathlib import Path
 
-from helpers import Workdir, events, read_jsonl, run_headless, write_json
+from helpers import Workdir, events, read_jsonl, write_json
+from helpers import run_legacy_headless as run_headless
 
 
 class QuanCustomerScheduling(unittest.TestCase):

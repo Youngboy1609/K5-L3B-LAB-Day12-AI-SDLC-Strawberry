@@ -23,6 +23,16 @@ QUAN_KEYS = {"player", "stock", "hand", "stoves", "tables", "customers", "random
              "reputation", "time_left_ticks"}
 
 
+def _mode_keys(mode, version):
+    if mode == "gather":
+        if version == "1.2":
+            return GATHER_KEYS_V11 | {"random_current", "current_direction"}
+        return GATHER_KEYS_V11 if version == "1.1" else GATHER_KEYS
+    if version == "1.2":
+        return QUAN_KEYS | {"reservations", "random_reservations"}
+    return QUAN_KEYS
+
+
 def _check_ids(name, arr):
     if not isinstance(arr, list):
         raise BadInput(f"{name} phải là mảng")
@@ -82,7 +92,7 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
                 child = data[child_mode]
                 if not isinstance(child, dict):
                     raise BadInput(f"khối {child_mode} phải là object")
-                allowed = (GATHER_KEYS_V11 if contract_version in ("1.1", "1.2") else GATHER_KEYS) if child_mode == "gather" else QUAN_KEYS
+                allowed = _mode_keys(child_mode, contract_version)
                 extra = set(child) - allowed
                 if extra:
                     raise BadInput(f"trường lạ/chưa hỗ trợ trong {child_mode}: {sorted(extra)}")
@@ -116,7 +126,7 @@ def load_scenario(path, mode: str, tuning: dict, contract_version="1.0") -> dict
     block = data.get(mode, {})
     if not isinstance(block, dict):
         raise BadInput(f"khối {mode} phải là object")
-    allowed = (GATHER_KEYS_V11 if contract_version in ("1.1", "1.2") else GATHER_KEYS) if mode == "gather" else QUAN_KEYS
+    allowed = _mode_keys(mode, contract_version)
     extra = set(block) - allowed
     if extra:
         raise BadInput(f"trường lạ/chưa hỗ trợ trong {mode}: {sorted(extra)}")
@@ -210,6 +220,12 @@ def _pos(name, pos, bounds, axes=("x", "d")):
 
 
 def _validate_gather(b, tuning, contract_version="1.0"):
+    if "random_current" in b and not isinstance(b["random_current"], bool):
+        raise BadInput("gather.random_current phải là bool")
+    if "current_direction" in b:
+        direction = b["current_direction"]
+        if type(direction) is not int or direction not in (-1, 1):
+            raise BadInput("gather.current_direction phải là -1 hoặc 1")
     g = tuning["gather"]
     bounds = g["bounds"]
     node_kinds = NODE_KINDS_P2 if contract_version in ("1.1", "1.2") else NODE_KINDS_P1
@@ -376,6 +392,29 @@ def _validate_quan(b, tuning, contract_version):
         raise BadInput("hai khách cùng bàn")
     if "random_customers" in b and not isinstance(b["random_customers"], bool):
         raise BadInput("random_customers phải là boolean")
+    if "random_reservations" in b and not isinstance(b["random_reservations"], bool):
+        raise BadInput("quan.random_reservations phải là boolean")
+    if "reservations" in b:
+        _validate_reservation_fixtures(b["reservations"], tuning, known)
+
+
+def _validate_reservation_fixtures(rows, tuning, tables):
+    _check_ids("quan.reservations", rows)
+    if len(rows) > 2:
+        raise BadInput("quan.reservations chỉ nhận tối đa hai đơn")
+    occupied = set()
+    duration = tuning["quan"]["duration_s"] * tuning["tick_hz"]
+    for row in rows:
+        if set(row) != {"id", "table_id", "dish_id", "arrival_tick"}:
+            raise BadInput("quan.reservations cần đúng id, table_id, dish_id và arrival_tick")
+        table, dish, tick = row["table_id"], row["dish_id"], row["arrival_tick"]
+        if not isinstance(table, str) or table not in tables or table in occupied:
+            raise BadInput("quan.reservations phải dùng các bàn có thật và khác nhau")
+        if not isinstance(dish, str) or dish not in tuning["menu"]:
+            raise BadInput("quan.reservations.dish_id không có trong menu")
+        if type(tick) is not int or not 0 < tick < duration:
+            raise BadInput("quan.reservations.arrival_tick phải dương và nhỏ hơn thời lượng ca chuẩn")
+        occupied.add(table)
 
 
 def _validate_item_fixture(items, kinds):

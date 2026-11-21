@@ -160,6 +160,20 @@ class FreshnessIntegration(unittest.TestCase):
                 self.assertEqual(cooked["base_price"], expected)
                 self.assertEqual([x["id"] for x in cooked["items"]], ["I1", "I2"])
 
+    def test_day_renews_explicit_reserved_ids_with_fixture_inventory(self):
+        scenario = self.gather([item(kind="ca_loc")])
+        scenario["day"] = {"day_plan": {"dishes": {"ca_loc_nuong_trui": 1}}}
+        scenario["quan"] = {"time_left_ticks": 1, "random_customers": False, "customers": [
+            {"id": "C1", "table_id": "T1", "dish_id": "ca_loc_nuong_trui", "reserved": ["I1"]}]}
+        controls = [{"tick": 0, "interact": True}, {"tick": 1, "interact": False},
+                    {"tick": 2, "shop_done": True},
+                    {"tick": 3, "shop_done": False, "interact": True}]
+        rows = self.ok("day", scenario, controls, ticks=4, extra=("--days", "2"))
+        opens = [s for s in snapshots(rows) if s["phase"] == "quan"]
+        self.assertEqual([(s["day"], s["phase_tick"]) for s in opens], [(1, 0), (2, 0)])
+        self.assertEqual([s["customers"][0]["reserved"] for s in opens], [["I1"], ["I2"]])
+        self.assertEqual([s["stock"][0]["id"] for s in opens], ["I1", "I2"])
+
     def test_reserved_ids_cannot_be_shared_and_day_output_is_atomic(self):
         scenario = self.gather([item(kind="ca_loc")])
         tables = self.contract["tuning"]["quan"]["tables"]
@@ -193,6 +207,38 @@ class FreshnessIntegration(unittest.TestCase):
                     self.ok(mode, scenario, ticks=3, out=out)
                 self.assertEqual((self.root / "first.jsonl").read_bytes(),
                                  (self.root / "second.jsonl").read_bytes())
+
+    def test_published_manifest_announces_same_reservations_in_gather_and_quan(self):
+        contract = json.loads((Path(ROOT) / "game.contract.json").read_text(encoding="utf-8"))
+        self.assertEqual(contract["contract_version"], "1.2")
+        self.assertEqual(set(contract["extensions"]), {"flood_current", "reservations"})
+        self.save("game.contract.json", contract)
+        rows = self.ok("day", self.gather(random_current=False), [{"tick": 0, "interact": True}])
+        initial = [event for event in events(rows) if event["tick"] == 0]
+        self.assertEqual([event["name"] for event in initial],
+                         ["day_start", "day_plan", "phase_start",
+                          "reservation_announced", "reservation_announced"])
+        gather, quan = snapshots(rows)
+        orders = gather["reservations"]
+        self.assertEqual([row["id"] for row in orders], ["R1", "R2"])
+        self.assertEqual(len({row["table_id"] for row in orders}), 2)
+        self.assertTrue(all(1800 <= row["arrival_tick"] <= 10799 for row in orders))
+        self.assertTrue(all(row["dish_id"] in gather["day_plan"]["dishes"] for row in orders))
+        self.assertEqual([{k: v for k, v in r.items() if k != "state"} for r in orders],
+                         [{k: v for k, v in r.items() if k != "state"} for r in quan["reservations"]])
+
+    def test_reservations_fixture_can_disable_random_and_rejects_shared_table(self):
+        self.contract["reservations"] = {"count": 2, "table_hold_s": 30, "price_multiplier": 1.5,
+                                         "failed_reputation_delta": -1}
+        self.save("game.contract.json", self.contract)
+        table = self.contract["tuning"]["quan"]["tables"][0]["id"]
+        dish = next(iter(self.contract["tuning"]["menu"]))
+        row = {"id": "R1", "table_id": table, "dish_id": dish, "arrival_tick": 1800}
+        rows = self.ok("quan", {"quan": {"random_reservations": False, "reservations": [row]}}, ticks=0)
+        self.assertEqual([event["data"]["id"] for event in events(rows, "reservation_announced")], ["R1"])
+        self.assertEqual(snapshots(rows)[0]["reservations"][0]["state"], "holding")
+        code, err = self.run_cli("quan", {"quan": {"reservations": [row, dict(row, id="R2")]}}, ticks=0)
+        self.assertEqual(code, 2, err)
 
 
 if __name__ == "__main__":

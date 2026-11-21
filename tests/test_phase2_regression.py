@@ -3,7 +3,8 @@ from pathlib import Path
 import json
 import unittest
 
-from helpers import ROOT, Workdir, events, frames, read_jsonl, run_headless, write_json
+from helpers import ROOT, Workdir, events, frames, read_jsonl, write_json
+from helpers import run_legacy_headless as run_headless
 
 
 class StandaloneDeterminism(unittest.TestCase):

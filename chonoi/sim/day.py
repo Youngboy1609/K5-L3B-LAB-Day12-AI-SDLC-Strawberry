@@ -3,8 +3,9 @@
 from copy import deepcopy
 
 from ..errors import BadInput
-from ..inventory import hold_to_items
-from ..ids import IdAllocator
+from ..inventory import hold_to_items, item_payload, new_item
+from ..ids import IdAllocator, sort_by_id
+from ..rng import Streams
 from .gather import GatherSim
 from .quan import QuanSim
 
@@ -106,18 +107,19 @@ class DaySim:
         return tuning
 
     def _build_day(self):
-        from ..rng import Streams
         tuning = self._effective_tuning()
         self.plan = self._plan_for(self.day)
+        self.reservations = None
+        if self.contract_version == "1.2" and "reservations" in tuning:
+            from .quan_reservations import build_reservations
+            self.reservations = build_reservations(
+                tuning, self.scenario.get("quan", {}), Streams(self.seed + self.day - 1),
+                self.plan["dishes"])
         self.phase = "gather"
         self.phase_tick = 0
         gs = self.scenario.get("gather", {})
         # Day fixture starts from current active levels; explicit fixture fields win (P2-03).
         if self.contract_version == "1.2":
-            try:
-                from ..inventory import new_item
-            except ImportError as e:
-                raise BadInput("v1.2 Day cần inventory.new_item từ adapter Hạnh") from e
             # Fixture IDs are retained on D1. Later days allocate fresh IDs in
             # source order while preserving each fixture item's original kind/fresh.
             fixture = gs.get("hold", [])
@@ -143,7 +145,6 @@ class DaySim:
         self.phase_sim.money, self.phase_sim.earned, self.phase_sim.reputation = self.money, self.earned, self.reputation
 
     def _build_quan(self):
-        from ..rng import Streams
         tuning = self._effective_tuning()
         if self.contract_version == "1.2":
             items = self.phase_sim.inventory_items()
@@ -163,12 +164,15 @@ class DaySim:
         start = {"money": self.money, "earned": self.earned, "reputation": self.reputation}
         self.phase_sim = QuanSim(tuning, qs, Streams(self.seed + self.day - 1), self.ids,
                                  inventory=items, dish_ids=menu_ids, start=start,
-                                 contract_version=self.contract_version)
+                                 contract_version=self.contract_version,
+                                 reservations=self.reservations)
         self.phase = "quan"
         self.phase_tick = 0
 
     def snapshot(self):
         data = self.phase_sim.snapshot() if self.phase_sim and self.phase != "shop" else {}
+        if self.phase == "gather" and self.reservations is not None:
+            data["reservations"] = [dict(row, state="scheduled") for row in self.reservations]
         if self.phase == "shop":
             data = {"stock": self._shop_stock_payload(),
                     "time_left_ticks": max(0, self.shop_duration - self.phase_tick)}
@@ -176,15 +180,19 @@ class DaySim:
                 "upgrades": deepcopy(self.upgrades), "active_upgrades": deepcopy(self.active_upgrades),
                 "days_completed": self.days_completed}
 
+    def morning_events(self):
+        rows = [("gather", "day_start", {}), ("gather", "day_plan", deepcopy(self.plan)),
+                ("gather", "phase_start", {"phase": "gather"})]
+        if self.reservations is not None:
+            rows.extend(("gather", "reservation_announced", dict(row, state="scheduled"))
+                        for row in self.reservations)
+        return rows
+
     def _shop_stock_payload(self):
         stock = getattr(self, "shop_stock", {} if self.contract_version == "1.1" else [])
         if self.contract_version != "1.2":
             return stock
-        try:
-            from ..inventory import item_payload
-        except ImportError as e:
-            raise BadInput("v1.2 Shop cần inventory.item_payload từ adapter Hạnh") from e
-        return [item_payload(item) for item in stock]
+        return [item_payload(item) for item in sort_by_id(stock)]
 
     def step(self, inp):
         if self.phase == "shop":
@@ -237,7 +245,5 @@ class DaySim:
                 self.day += 1
                 self.active_upgrades = deepcopy(self.upgrades)
                 self._build_day()
-                rows.extend([("gather", "day_start", {}),
-                             ("gather", "day_plan", deepcopy(self.plan)),
-                             ("gather", "phase_start", {"phase": "gather"})])
+                rows.extend(self.morning_events())
         return rows

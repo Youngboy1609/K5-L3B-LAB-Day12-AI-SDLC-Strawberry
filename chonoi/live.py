@@ -17,6 +17,7 @@ Ngẫu nhiên vẫn đi qua `Streams` (seed); chỉ nhịp chạy theo đồng h
 import argparse
 import json
 from fractions import Fraction
+import math
 import os
 import sys
 import threading
@@ -35,14 +36,15 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 TICK_S = 1.0 / 60.0
 MAX_BODY = 4096
 RECENT_EVENTS = 40
-FRESH_EXPORT_DIGITS = 5  # v1.2: cùng độ chính xác với item_payload của file kho/JSONL (chỉ để hiển thị)
 
 
-def _json_default(o):
-    """v1.2 giữ fresh là Fraction trong sim; client nhận số JSON 5 chữ số như file kho. Luật không đọc lại số này."""
+def _json_default(o, spoiled_below=None):
     if isinstance(o, Fraction):
-        r = round(float(o), FRESH_EXPORT_DIGITS)
-        return 0.0 if r == 0 else r
+        rounded = float(o)
+        if spoiled_below is not None and o < spoiled_below and rounded == float(spoiled_below):
+            # JavaScript dùng float. Giữ đúng nhánh ươn cho giá trị sát ngưỡng.
+            return math.nextafter(rounded, -math.inf)
+        return rounded
     raise TypeError(f"không xuất JSON được kiểu {type(o).__name__}")
 
 
@@ -66,7 +68,8 @@ class LiveGame:
     def _reset(self):
         if self.mode == "day":
             mode, tuning, scenario, seed, _ = self._args
-            self.session = DaySession(tuning, scenario, seed, self.days)
+            version = "1.2" if self.contract_version == "1.2" else "1.1"
+            self.session = DaySession(tuning, scenario, seed, self.days, contract_version=version)
             self.inputs = LiveInputs(buttons=BUTTONS_V11, allow_buy=True)
             self.events = self.session._wrap(0, self.session.initial_events)  # day_start, day_plan, phase_start
             self.served_dishes = {}
@@ -74,7 +77,7 @@ class LiveGame:
         else:
             self.session = Session(*self._args, contract_version=self.contract_version)
             self.inputs = LiveInputs()
-            self.events = []
+            self.events = list(self.session.initial_events)
         self._saved = False
         self.error = None
         self.paused = False  # restart luôn bỏ pause
@@ -153,7 +156,9 @@ class LiveGame:
             snap["contract_version"] = self.contract_version  # HUD chọn schema kho: v1.2 mảng cá thể, cũ là object đếm
             if self.freshness is not None:
                 snap["freshness"] = self.freshness
-            return json.dumps(snap, ensure_ascii=False, separators=(",", ":"), default=_json_default).encode("utf-8")
+            threshold = Fraction(str(self.freshness["spoiled_below"])) if self.freshness else None
+            return json.dumps(snap, ensure_ascii=False, separators=(",", ":"),
+                              default=lambda o: _json_default(o, threshold)).encode("utf-8")
 
     def set_input(self, body: dict):
         move = body.get("move")

@@ -352,7 +352,10 @@ function morningIntro() {
   const dishes = Object.entries(plan?.dishes || {}).map(([id, servings]) => [dishName(id), servings + " suất"]);
   const agenda = dishes.length ? "<h3>Thực đơn Má Tư</h3>" + statsTable(dishes) +
                 "<h3>Nguyên liệu cần lấy</h3>" + statsTable(ingredientRows(plan.ingredients)) : "";
-  return card(heading + agenda, [["skip", "Bắt đầu"]], INTRO_HINT);
+  const reservations = (snap?.reservations || []).map((r) =>
+    [r.id + " · " + r.table_id, dishName(r.dish_id) + " · sau mở quán " + Math.ceil(r.arrival_tick / 60) + " giây"]);
+  const bookings = reservations.length ? "<h3>Đơn đặt trước</h3>" + statsTable(reservations) : "";
+  return card(heading + agenda + bookings, [["skip", "Bắt đầu"]], INTRO_HINT);
 }
 function eveningIntro() {
   const stock = ingredientRows(snap?.stock);
@@ -606,6 +609,16 @@ function drawGather(w, h) {
   const lowOxy = hasOxy && p.oxygen_ticks < p.oxygen_max_ticks * 0.25;
   const notices = [];
   if (danger) notices.push("Thủy quái!");
+  if (snap.current) {
+    notices.push(snap.current.direction < 0 ? "Dòng lũ ←" : "Dòng lũ →");
+  } else if ((snap.events || []).some((e) => e.phase === "gather" && e.day === snap.day && e.name === "current_warning"
+             && e.tick <= snap.tick && snap.tick - e.tick < e.data.ticks_until_start)) {
+    notices.push("Sắp có dòng lũ");
+  }
+  for (const r of snap.reservations || []) {
+    const eta = Math.ceil(r.arrival_tick / 60);
+    notices.push(r.id + " · " + r.table_id + " · " + dishName(r.dish_id) + " · đến sau " + eta + " giây mở quán");
+  }
   if (lowOxy) notices.push(p.oxygen_ticks === 0 ? "Hết hơi!" : "Sắp hết oxy — lên thở!");
   if (near(dp, dr)) notices.push("E · Cập bến");
   else if (p?.at_surface && (snap.nodes || []).some((n) => n.ready && near(n.pos, meta.interact_radius))) {
@@ -921,14 +934,19 @@ function drawQuan(w, h) {
   (snap.customers || []).forEach((c) => { if (c) byTable[c.table_id] = c; });
   (snap.tables || []).forEach((tb) => {
     if (!tb || !Array.isArray(tb.pos)) return;
-    ctx.fillStyle = "#8a5a2e"; ctx.beginPath(); ctx.arc(sx(tb.pos[0]), sy(tb.pos[1]), 0.9 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = tb.reservation_id ? "#784690" : "#8a5a2e";
+    ctx.beginPath(); ctx.arc(sx(tb.pos[0]), sy(tb.pos[1]), 0.9 * s, 0, Math.PI * 2); ctx.fill();
     text(tb.id ?? "?", sx(tb.pos[0]), sy(tb.pos[1]) + 6, { align: "center", color: "#fff", bold: true });
+    if (tb.reservation_id) {
+      text(tb.reservation_id, sx(tb.pos[0]), sy(tb.pos[1]) + 0.9 * s + 16,
+           { align: "center", color: "#351f42", bold: true });
+    }
     const c = byTable[tb.id];
     if (c) {
       const cx = sx(tb.pos[0]), cy = sy(tb.pos[1]) - 1.5 * s;
       ctx.fillStyle = c.state === "eating" ? "#7bc67b" : "#f4b6c2"; ctx.beginPath(); ctx.arc(cx, cy, 0.55 * s, 0, Math.PI * 2); ctx.fill();
       if (num(c.patience_ticks_left) && c.state === "waiting") {
-        const fraction = c.patience_ticks_left / patMax;
+        const fraction = c.patience_ticks_left / (c.reservation_id ? 3600 : patMax);
         bar(cx - 0.8 * s, cy + 0.65 * s, 1.6 * s, 5, fraction, fraction < 0.25 ? "#e57373" : "#ffd180");
       }
     }

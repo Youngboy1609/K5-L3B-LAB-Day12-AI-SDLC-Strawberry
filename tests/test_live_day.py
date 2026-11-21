@@ -4,6 +4,7 @@ Manifest dự án còn v1.0 nên test tự thêm tuning.day tối thiểu (giố
 """
 
 from contextlib import redirect_stderr, redirect_stdout
+from fractions import Fraction
 from io import StringIO
 import json
 import time
@@ -133,7 +134,20 @@ class LiveDayTest(unittest.TestCase):
 
 
 class LiveFreshnessSnapshotTest(unittest.TestCase):
-    """Phase 3 (HUD): snapshot live báo schema kho và ngưỡng ươn; fresh Fraction xuất số 5 chữ số như file kho."""
+    """Phase 3: Day dùng đúng schema và HUD giữ đúng nhánh ở ngưỡng ươn."""
+
+    def test_day_v12_keeps_spoil_boundary_in_browser_snapshot(self):
+        tuning = _tuning()
+        tuning["freshness"] = {"initial": 100, "gather_decay_per_s": 0.5,
+                               "quan_decay_per_s": 0.25, "spoiled_below": 30}
+        hold = [{"id": "I1", "kind": "ca_linh", "fresh": Fraction("29.99999999999999999")},
+                {"id": "I2", "kind": "ca_linh", "fresh": 30}]
+        game = LiveGame("day", tuning, {"gather": {"hold": hold}}, 42,
+                        contract_version="1.2", freshness=tuning["freshness"])
+        snapshot = json.loads(game.state_json())
+        self.assertEqual(game.session.sim.contract_version, "1.2")
+        self.assertLess(snapshot["hold"][0]["fresh"], 30)
+        self.assertEqual(snapshot["hold"][1]["fresh"], 30)
 
     def test_snapshot_reports_schema_and_threshold(self):
         tuning = load_contract()["tuning"]
@@ -145,13 +159,12 @@ class LiveFreshnessSnapshotTest(unittest.TestCase):
         self.assertNotIn("freshness", json.loads(LiveGame("gather", tuning, {}, 1).state_json()))
 
     def test_fraction_fresh_is_exported_for_display_only(self):
-        from fractions import Fraction
         from chonoi.live import _json_default
         out = json.loads(json.dumps({"hold": [{"id": "I1", "kind": "ca_linh", "fresh": Fraction(11999, 120)},
                                               {"id": "I2", "kind": "ca_linh", "fresh": Fraction(6001, 200)},
                                               {"id": "I3", "kind": "ca_linh", "fresh": Fraction(0)}]},
                                     default=_json_default))
-        self.assertEqual([i["fresh"] for i in out["hold"]], [99.99167, 30.005, 0.0])
+        self.assertEqual([i["fresh"] for i in out["hold"]], [float(Fraction(11999, 120)), 30.005, 0.0])
         with self.assertRaises(TypeError):
             json.dumps({"x": object()}, default=_json_default)
 

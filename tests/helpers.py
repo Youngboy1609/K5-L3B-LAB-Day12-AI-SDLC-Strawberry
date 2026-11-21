@@ -4,6 +4,7 @@ import json
 import math
 import os
 import shlex
+import shutil
 import subprocess
 import tempfile
 
@@ -20,16 +21,31 @@ def frames(*fr):
     return {"frames": list(fr)}
 
 
-def headless_cmd():
+def headless_cmd(cwd=ROOT):
     """Lệnh headless khai trong game.contract.json — test chạy qua đây nên dùng được với MỌI ngôn ngữ."""
-    with open(os.path.join(ROOT, "game.contract.json"), encoding="utf-8") as f:
+    with open(os.path.join(cwd, "game.contract.json"), encoding="utf-8") as f:
         return shlex.split(json.load(f)["headless_cmd"])
 
 
 def run_headless(*args, cwd=ROOT):
     """Chạy `<headless_cmd> <args>`; trả (mã thoát, stderr)."""
-    p = subprocess.run([*headless_cmd(), *args], cwd=cwd, capture_output=True, text=True)
+    p = subprocess.run([*headless_cmd(cwd), *args], cwd=cwd, capture_output=True, text=True)
     return p.returncode, p.stderr
+
+
+def run_legacy_headless(*args):
+    """Chạy fixture đếm Phase 1/2 với manifest v1.1, kể cả khi mặc định đã lên v1.2."""
+    with open(os.path.join(ROOT, "game.contract.json"), encoding="utf-8") as f:
+        version = json.load(f)["contract_version"]
+    if version != "1.2":
+        return run_headless(*args)
+
+    with tempfile.TemporaryDirectory(prefix="chonoi-v11-") as cwd:
+        shutil.copytree(os.path.join(ROOT, "chonoi"), os.path.join(cwd, "chonoi"),
+                        ignore=shutil.ignore_patterns("__pycache__"))
+        fixture = os.path.join(ROOT, "docs", "proof", "phase-3", "fixtures", "contract-v1.1.json")
+        shutil.copy2(fixture, os.path.join(cwd, "game.contract.json"))
+        return run_headless(*args, cwd=cwd)
 
 
 def read_jsonl(path):

@@ -1,42 +1,15 @@
-# QA Phase 3 — Nguyễn Minh Quân
+# Kiểm chứng Phase 3
 
-Ngày kiểm: 2026-11-21. Đây là kết quả chuẩn bị QA, chưa phải nghiệm thu v1.2.
+Kiểm ngày 2026-11-21. Cây tích hợp gồm Day/contract, kho và Gather từ PR #16, Quán do Nghĩa thực hiện với GPT-6 Luna, HUD từ PR #18 và QA từ PR #17. Kết quả chuẩn bị tại commit `e8c7e47` ghi riêng lượt chạy trước khi có runtime v1.2.
 
-- Cây nguồn đã kiểm: `92795af5a80ff2499f396f4b6ecf0a4bb531bb9f` cộng thay đổi QA chưa commit trong lượt này.
-- Nền `phase-2^{commit}` tại local: `8d01879cdcbb6c3551c82ee7c1a41aff236ebed6`, khớp kế hoạch. Không dùng SHA annotated tag object làm SHA commit.
-- Manifest sản phẩm vẫn là v1.1. Test mới sao chép `chonoi/` vào thư mục tạm, đặt manifest v1.2 với `freshness` ở gốc theo đề xuất trong kế hoạch. Không mock loader/runtime, không sửa manifest khóa hoặc test cũ.
-- Seed CLI: 42. Test dùng subprocess thật, snapshot mỗi tick. JSONL và log thô ở thư mục tạm, không đưa vào bài nộp.
-
-## Kết quả chạy
-
-| Lệnh từ gốc repo | Kết quả thực tế |
-|---|---|
-| `python3 docs/proof/phase-3/run_regression.py` | 112 test P1/P2 đạt với manifest v1.1 được giữ trong fixture; 5,739 s. |
-| `PYTHONPATH=tests:. python3 -m unittest test_phase3_integration -v` | 12 phương thức test, 14 failure tính cả subtest, 0 error; 0,889 s. Tất cả bị chặn ở loader. |
-| `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v` | 124 test trong 6,563 s: 112 test cũ đạt; 12 test P3 có 14 failure tính cả subtest, 0 error. |
-
-Ba test HTTP live ban đầu gặp `PermissionError` khi mở cổng trong sandbox. Đã chạy lại ngoài sandbox để kiểm cổng localhost; regression đủ 112/112 đạt. Không thay test để né lỗi môi trường.
-
-## Ma trận nghiệm thu
-
-| AC | Test / bằng chứng đã chuẩn bị | Trạng thái thực tế |
+| Tiêu chí | Bằng chứng | Kết quả |
 |---|---|---|
-| AC-P3-01 | `test_file_handoff_preserves_identity_and_unrounded_freshness`, `test_invalid_inventory_rejected_without_replacing_output`, `test_inventory_can_exceed_basket_capacity`, `test_unfinished_gather_preserves_inventory_destination`, `test_faint_exports_empty_array_and_lifo_loss`, `test_reserved_ids_cannot_be_shared_and_day_output_is_atomic` | Chưa đạt: loader v1.2 từ chối manifest. Các ca từ chối có positive control để tránh xanh giả khi mọi payload đều bị từ chối. |
-| AC-P3-02 | `test_spoiled_crossing_once_sorted_by_id`, `test_exact_threshold_still_fresh_at_tick_zero`, `test_decimal_just_above_threshold_not_rounded_to_spoiled`, `test_day_handoff_shop_freezes_and_day_two_renews_ids`, `test_price_floor_after_decay_and_items_sorted`, `test_standalone_outputs_deterministic` | Chưa xác minh gameplay: chưa đi qua loader. Giá dùng Fraction từ đúng số thập phân JSON fixture sau hao, không dùng số hiển thị đã làm tròn. |
-| AC-P3-03 | Kế hoạch đã phân công; test CLI thật trong cây sao chép | Chưa có kiểm bản chơi v1.2/HUD hoặc ADR được nghiệm thu trong lượt này. |
-| AC-P3-04 | Regression 112/112, fixture manifest v1.1, script tái chạy, tài liệu này | Mới hoàn tất phần chuẩn bị QA. Chưa nghiệm thu CHANGELOG, HUD, ADR và schema v1.2. |
-| AC-P3-05 | Đã đối chiếu commit nền local | Chưa đối chiếu remote main/tag ứng viên với Nghĩa; chưa tạo/push tag. |
+| AC-P3-01 · Schema và bàn giao kho | `test_inventory_v12` và `test_phase3_integration`. CLI so file kho với `gather_end.data.inventory` và kho Quán tick 0. Kiểm file đếm trả mã 2, giữ đầu ra cũ khi fixture sai, và kho vượt sức chứa giỏ. | Đạt. Smoke trên manifest bàn giao cho cùng `I1 / ca_linh / 99.991666666666667` ở cả ba đầu ra. |
+| AC-P3-02 · Luật và ngưỡng | `test_gather_freshness`, `test_quan_freshness` và `test_phase3_integration`. Kiểm vượt ngưỡng, ưu tiên cá thể tươi nhất và ID, thay phần giữ vừa ươn, khóa giá sau hao, ID mới ở Day 2, giữ độ tươi trong Shop và thứ tự LIFO. | Đạt. Hai lượt Day seed 42 kết thúc đúng 22.200 tick và sinh JSONL giống từng byte. |
+| AC-P3-03 · HUD và thay đổi schema | [ADR kho](../adr/0001-freshness-inventory.md), [thứ tự tích hợp](../plan/phase-3-tasks.md), `test_live_day` và smoke Playwright tại 1280×720 và 390×700. | Đạt. Gather hiện hàng ươn, Quán lọc hàng đang giữ và hàng ươn. Live Day hiện đơn R1/R2 và đưa giỏ qua Quán khi cập bến. |
+| AC-P3-04 · Hồi quy và hồ sơ | [CHANGELOG](../../CHANGELOG.md), [clarify](../clarify.md), [nhật ký AI](../ai-usage-log.md), [retro](../retro.md) và [cách chạy QA](../proof/phase-3/README.md). | 202/202 test với manifest v1.2 và 187/187 test trên cây manifest v1.1. Kiểm danh sách 6 thành viên đạt. |
+| AC-P3-05 · Mở rộng và tag | `test_flood_current`, `test_quan_reservations` và `test_phase3_integration`. | Dòng lũ báo trước ở tick 780, bắt đầu tick 900, kết thúc tick 1080. Đặt trước qua test công bố, giữ bàn, đến, xử lý khi thiếu hàng và phục vụ. Mốc bàn giao `phase-3`. |
 
-## Điểm đỏ cần bàn giao
+SHA-256 của JSONL chạy Day seed 42 là `2a2cb3c154961bcdbb9881ec87ea0c051dbc45143f6e26e9c16f111344c40598`.
 
-1. `contract.py::_validate_gather`: manifest `contract_version: "1.2"` bị đưa vào tập nguyên liệu P1, báo `tuning.gather.nodes.N5: kind phải là một trong ('bong_dien_dien', 'bong_sung')`. Tái hiện bằng bất kỳ test mới; chưa kiểm được payload `I1` ở tick 0.
-2. `headless.py`: điều kiện Day, buttons và buy còn chỉ nhận đúng `"1.1"`. Đây là điểm chặn tiếp theo thấy từ đọc mã, chưa phải kết quả chạy sau sửa loader.
-3. `inventory.py`, Gather, Quán và Day hiện còn kho count/giỏ kind theo v1.1. Chủ các lát cần ghép schema cá thể trước khi bật v1.2. Không đổi các file này trong lát QA.
-
-## Phần chờ chốt và kiểm tiếp
-
-- P3-02: chưa khóa test tái cấp khi phần giữ vừa ươn, giữ lại phần còn tươi và hai đơn cạnh tranh; cần PO/chủ Quán chốt thứ tự và trạng thái trước khi viết kỳ vọng.
-- P3-03: chưa yêu cầu event khởi tạo cho hàng vốn đã ươn; ca hiện tại chỉ kiểm vượt ngưỡng trong bước.
-- P3-04: ca D2 kiểm cấp ID mới với cấp đơn tự động; chưa khóa ánh xạ reserved qua nhiều ngày.
-- Sau ghép: chạy lại toàn bộ test mới, bổ sung khóa giá qua bếp/tay đến phục vụ, lựa chọn tươi nhất/hòa ID, fresh không hữu hạn, kiểm payload sau vòng ghi–đọc sát ngưỡng và HUD với Hà. Không xem các kiểm tra này là đã đạt.
-- Chưa có review chéo của nhóm. Không merge/push bộ test đỏ như ứng viên bàn giao đạt.
+Dùng mã mở rộng và thông số Dòng lũ nhóm đã chốt ở P3-05. Các ô của preset Phase 2 thiếu bảng gốc vẫn dùng giá trị nhóm đề xuất P2-01. [Các câu hỏi làm rõ](../clarify.md)

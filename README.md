@@ -30,7 +30,7 @@ python3 -m chonoi.live --mode quan --inventory kho.json
 | Esc hoặc P | Tạm dừng / chơi tiếp (máy chủ ngừng bước tick thật, kể cả giờ Shop) |
 | 1–9 (ở Shop) | Mua nâng cấp theo thứ tự trong danh sách |
 
-**Chơi cả ngày (Phase 2)** dùng lệnh `python3 -m chonoi.live --mode day --days 5`. Manifest v1.1 hiện dùng [số đề xuất của nhóm](docs/clarify.md#preset-v11-đề-xuất-cho-p2-01) cho các ô Ticket-02 chưa cung cấp. Màn giới thiệu, kết quả và pause đều dừng mô phỏng.
+**Chơi cả ngày** dùng lệnh `python3 -m chonoi.live --mode day --days 5`. v1.2 giữ [số đề xuất của nhóm](docs/clarify.md#preset-v11-đề-xuất-cho-p2-01) cho các ô Ticket-02 chưa cung cấp. Màn giới thiệu, kết quả và pause đều dừng mô phỏng.
 
 **Xem thử màn hình bằng dữ liệu mẫu** (khi server đang chạy, hoặc mở thẳng file `chonoi/web/index.html`): thêm `?demo=shop`, `?demo=result`, `?demo=summary`, `?demo=pause`, `?demo=hold` (giỏ theo độ tươi) hoặc `?demo=kho` (kho quán theo độ tươi) vào địa chỉ, ví dụ http://127.0.0.1:8000/?demo=shop. Chế độ này không gửi gì lên máy chủ.
 
@@ -42,9 +42,7 @@ python3 -m chonoi.live --mode quan --inventory kho.json
 PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
 ```
 
-**File kho:** gốc có một khóa `"items"`, ánh xạ 4 mã nguyên liệu `bong_sung`, `bong_dien_dien`, `ca_linh`, `ca_loc` tới số nguyên không âm; loại có lượng 0 thì bỏ. Ví dụ: `{"items":{"bong_sung":2,"ca_loc":1}}`, xem [`docs/contracts/inventory.sample.json`](docs/contracts/inventory.sample.json).
-
-**Kho v1.2 (độ tươi, Phase 3).** Khi `game.contract.json` có `"contract_version": "1.2"`, file kho là mảng cá thể, ví dụ `{"items":[{"id":"I1","kind":"ca_linh","fresh":99.99167}]}`. Mỗi nguyên liệu có ID riêng và độ tươi từ 0 tới 100; `fresh < 30` là ươn, đúng 30 vẫn tươi. File kiểu đếm cũ bị từ chối với mã 2. Lệnh chạy không đổi:
+**Kho v1.2 (độ tươi, Phase 3).** File kho là mảng cá thể, ví dụ `{"items":[{"id":"I1","kind":"ca_linh","fresh":99.99167}]}`. Mỗi nguyên liệu có ID riêng và độ tươi từ 0 tới 100. Độ tươi dưới 30 là ươn, đúng 30 vẫn tươi. File kiểu đếm cũ bị từ chối với mã 2. Lệnh chạy không đổi.
 
 ```bash
 python3 -m chonoi.live --mode gather --inventory-out kho.json
@@ -81,6 +79,13 @@ Game cần chế độ **headless** theo Test Contract (`python3 -m chonoi.headl
 ## Tự do sáng tạo
 
 Ngoài phần đề yêu cầu, nhóm được **thêm** nhân vật, loài cá/cây, sinh vật, món, bản đồ, cơ chế, câu chuyện, đồ họa, âm nhạc… với ba điều kiện: **không phá phần cố định** (tắt ở headless), ghi mục **"Sáng tạo của nhóm"** trong README của nhóm, và **làm lõi đúng trước**.
+
+### Sáng tạo của nhóm
+
+- **Dòng lũ** (`flood_current`) đẩy người chơi theo dòng khi độ sâu đạt ít nhất 4. Dòng lên mỗi 900 tick, kéo dài 180 tick và báo trước 120 tick. Tốc độ đẩy là 2 đơn vị/giây. Dùng `gather.random_current: false` để tắt lịch hoặc `gather.current_direction: -1` / `1` để kiểm hướng. Xem `test_flood_current`.
+- **Đặt trước** (`reservations`) công bố hai đơn theo seed vào buổi sáng của Day. Bàn được giữ từ 30 giây trước giờ đến. Giá món phục vụ đơn đặt trước nhân 1,5 sau khi khóa giá theo độ tươi. Xem `test_quan_reservations` và `test_phase3_integration`.
+
+Mã hai mở rộng và số liệu Dòng lũ là giá trị nhóm chọn cho bản bàn giao. Xem [P3-05](docs/clarify.md).
 
 ## Lịch 3 giờ
 

@@ -39,6 +39,11 @@ class GatherSim:
         self.monster_rules = t.get("monster_rules", DEFAULT_RULES)
         self.monsters = build_monsters(self.monster_rules, scenario, day or 1, t["bounds"]) if self.phase2 else []
         self.rng = streams
+        self.current_rules = t.get("current") if self.item_hold else None
+        self.current_enabled = scenario.get("random_current", True)
+        self.current_direction = scenario.get("current_direction")
+        self.current = None
+        self.elapsed_ticks = 0
         self.ids = ids
         p = scenario.get("player", {})
         self.pos = [float(c) for c in p.get("pos", t["start_pos"])]
@@ -119,6 +124,7 @@ class GatherSim:
                        "at_surface": self._at_surface()},
             "hold": self.hold_payload(self.hold), "hold_count": len(self.hold),
             **({"monsters": [dict(m) for m in self.monsters]} if self.phase2 else {}),
+            **({"current": self.current} if self.current_rules else {}),
             "hold_capacity": self.t["hold_capacity"],
             "nodes": [{"id": n["id"], "pos": n["pos"], "kind": n["kind"],
                        "ready": n["regrow_ticks"] == 0, "regrow_ticks": n["regrow_ticks"]}
@@ -136,6 +142,8 @@ class GatherSim:
         advance_nodes(self, events)
         if self.item_hold:
             self._decay_hold(events)
+        if self.current_rules and self.current_enabled:
+            self._advance_current(events)
         # 2. bơi, chặn mép và sinh tồn
         was_at_surface = self._at_surface()
         self._move(inp)
@@ -164,6 +172,25 @@ class GatherSim:
         return events
 
     # --- tiện ích ---------------------------------------------------------------
+    def _advance_current(self, events):
+        self.elapsed_ticks += 1
+        rules = self.current_rules
+        interval = rules["interval_ticks"]
+        offset = self.elapsed_ticks % interval
+        if self.current and self.current["ticks_left"] == 1:
+            self.current = None
+            events.append(("current_ended", {}))
+        elif self.current:
+            self.current = {**self.current, "ticks_left": self.current["ticks_left"] - 1}
+        if rules["warning_ticks"] and offset == interval - rules["warning_ticks"]:
+            events.append(("current_warning", {"ticks_until_start": rules["warning_ticks"]}))
+        if offset == 0:
+            direction = self.current_direction
+            if direction is None:
+                direction = self.rng.get("flood_current").choice((-1, 1))
+            self.current = {"direction": direction, "ticks_left": rules["duration_ticks"]}
+            events.append(("current_started", dict(self.current)))
+
     def _at_surface(self) -> bool:
         return self.pos[1] <= self.t["surface_depth"]
 
@@ -219,6 +246,8 @@ class GatherSim:
         if (mx, md) != (0.0, 0.0):
             self.heading = math.degrees(math.atan2(md, mx)) % 360
         b = self.t["bounds"]
+        if self.current and self.pos[1] >= self.current_rules["min_depth"]:
+            self.pos[0] += self.current["direction"] * self.current_rules["speed"] / self.tick_hz
         for i, axis in enumerate(AXES):
             self.pos[i] += self.vel[i] / TICK
             lo, hi = b[axis]
